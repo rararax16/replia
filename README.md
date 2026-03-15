@@ -1,75 +1,34 @@
 # Instagram DM/コメント自動返信プロトタイプ
 
-日本向けの Instagram DM/コメント自動返信プロトタイプです。  
-Nuxt 3（フロント + server routes）と MySQL を `docker-compose` で動かします。
-
-## 特徴
-
-- UI・APIメッセージは日本語固定
-- ユーザー登録 / ログイン
-- Instagram OAuth 連携（アクセストークン手入力不要）
-- 返信ルール CRUD（DM / コメント別、ON/OFF、優先度）
-- 受信イベント保存とキーワード一致による自動返信（送信はスタブ）
-- Prisma マイグレーション対応
+日本向けの Instagram DM / コメント自動返信プロトタイプです。  
+Nuxt 3（Nitro）を `Vercel`、DB を `Supabase PostgreSQL` に載せる前提で構成しています。
 
 ## 技術スタック
 
-- Frontend / Backend: Nuxt 3 (Nitro)
-- DB: MySQL 8
+- Frontend / Backend: Nuxt 3
+- DB: Supabase PostgreSQL
 - ORM: Prisma
-- 実行環境: Docker Compose
-- Instagram連携: Meta Graph API (`v24.0`)
+- デプロイ先: Vercel
+- Instagram 連携: Meta Graph API (`v24.0`)
 
-## ディレクトリ構成
+## 事前準備
 
-```text
-.
-├─ app/                # Nuxt 3 アプリ
-│  ├─ pages/           # 画面
-│  ├─ server/api/      # API ルート
-│  ├─ server/utils/    # サーバー共通処理
-│  ├─ server/services/ # 外部API連携
-│  └─ prisma/          # Prisma schema / migrations
-├─ db/                 # MySQL コンテナ設定
-└─ docker-compose.yml
-```
+`app/.env.example` を参考に `app/.env` を作成してください。最低限必要なのは以下です。
 
-## セットアップ
-
-### 1. 環境変数を用意
-
-`app/.env.example` を参考に `app/.env` を設定してください。
-
-最低限、以下を本番値に変更してください。
-
+- `APP_BASE_URL`
 - `SESSION_SECRET`
 - `TOKEN_ENCRYPTION_KEY`
+- `DATABASE_URL`
+- `DIRECT_URL`
 - `META_APP_ID`
 - `META_APP_SECRET`
 - `META_WEBHOOK_VERIFY_TOKEN`
-- `APP_BASE_URL`
 
-`META_APP_ID` / `META_APP_SECRET` は、この実装では **Instagram Login 対応のMetaアプリ（Instagramアプリ）** の値を設定してください。
+`DATABASE_URL` は Supabase の pooler 接続文字列、`DIRECT_URL` は migration 用の direct 接続文字列を設定します。
 
-### 2. 起動
+## ローカル開発
 
-```bash
-docker compose up --build
-```
-
-バックグラウンド起動:
-
-```bash
-docker compose up --build -d
-```
-
-停止:
-
-```bash
-docker compose down
-```
-
-## ローカル開発（Nuxt単体）
+### Nuxt 単体
 
 ```bash
 cd app
@@ -77,82 +36,63 @@ npm install
 npm run dev
 ```
 
-ビルド確認:
+### Docker Compose
+
+```bash
+docker compose -f docker-compose.dev.yml up --build -d
+docker compose -f docker-compose.dev.yml exec app sh
+```
+
+Compose では PostgreSQL コンテナを起動し、アプリ側には `postgresql://app_user:app_pass@postgres:5432/app_db?schema=public` を渡します。
+
+## Prisma
+
+通常ビルド:
 
 ```bash
 cd app
 npm run build
 ```
 
-## DBマイグレーション
-
-開発:
+Vercel 相当ビルド:
 
 ```bash
 cd app
-npx prisma migrate dev
+npm run build:vercel
 ```
 
-デプロイ:
+`build:vercel` は `prisma migrate deploy` を先に実行してから Nitro の Vercel preset でビルドします。
 
-```bash
-cd app
-npx prisma migrate deploy
-```
+## Vercel デプロイ
 
-## Instagram連携（OAuth）
+Vercel プロジェクトでは次を設定してください。
 
-ログイン後、ダッシュボードの「Instagramと連携する」ボタンを押すと、Meta認可画面へ遷移します。  
-認可後、連携アカウントが自動で保存されます。
+1. Root Directory: `app`
+2. Install Command: `npm install`
+3. Build Command: `npm run build:vercel`
 
-### Meta App 側で必要な設定
+`app/vercel.json` にも `buildCommand` を定義しています。
 
-- `META_APP_ID` / `META_APP_SECRET` は Instagram Login 対応の Meta アプリ値を使用する
+### Vercel に設定する環境変数
 
-- OAuth リダイレクトURI:
-  - `http://localhost:3000/api/ig-accounts/oauth/callback`
-  - 本番は `APP_BASE_URL` に合わせたURL
-- 必要権限（例）:
-  - `instagram_business_basic`
-  - `instagram_business_manage_messages`
-  - `instagram_business_manage_comments`
+- `APP_BASE_URL`
+- `SESSION_SECRET`
+- `TOKEN_ENCRYPTION_KEY`
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `META_APP_ID`
+- `META_APP_SECRET`
+- `META_WEBHOOK_VERIFY_TOKEN`
+- `META_API_VERSION`
+- `META_OAUTH_SCOPES`
 
-## 主要エンドポイント
+## Supabase 側の設定
 
-- 認証
-  - `POST /api/auth/register`
-  - `POST /api/auth/login`
-  - `POST /api/auth/logout`
-  - `GET /api/auth/me`
-- Instagram連携
-  - `GET /api/ig-accounts`
-  - `GET /api/ig-accounts/oauth/start`
-  - `GET /api/ig-accounts/oauth/callback`
-  - `PATCH /api/ig-accounts/:id`
-  - `DELETE /api/ig-accounts/:id`
-- 返信ルール
-  - `GET /api/reply-rules`
-  - `POST /api/reply-rules`
-  - `PUT /api/reply-rules/:id`
-  - `DELETE /api/reply-rules/:id`
-- 受信イベント
-  - `GET /api/inbound-events`
-  - `POST /api/inbound-events`
-- Webhook
-  - `GET /api/webhooks/instagram`
-  - `POST /api/webhooks/instagram`
+1. 新しい Supabase Project を作成する
+2. `Settings > Database` から接続文字列を取得する
+3. pooler 用を `DATABASE_URL`、direct 接続を `DIRECT_URL` に設定する
 
-## 注意事項
-
-- プロトタイプのため、返信送信は現在スタブ実装です。
-- `app/.env` はGit管理しないでください。
-- 本番では DB資格情報・秘密鍵を必ず変更してください。
-
-
-# 開発を行う場合の設定
-
-test@example.com
-password123
+Prisma schema は PostgreSQL 前提です。
 
 ## MetaApp設定箇所
 - アプリ設定 > ベーシック > アプリドメイン > ドメインを追加 > {ドメイン}
@@ -160,10 +100,11 @@ password123
 - Instagram > 2. Webhooksを設定する > 
   - コールバックURL > {ドメイン}/api/webhooks/instagram
   - 認証トークン > META_WEBHOOK_VERIFY_TOKEN
-- Instagram > InstagramビジネスログインによるAPI設定 > ビジネスログイン設定 > {ドメイン}api/ig-accounts/oauth/callback
+- Instagram > InstagramビジネスログインによるAPI設定 > 3. Instagramビジネスログインを設定する> ビジネスログイン設定 > {ドメイン}api/ig-accounts/oauth/callback
 - APP_BASE_URL > {ドメイン}
 
-https://4a0e-1-21-49-250.ngrok-free.app/api/webhooks/instagram
-https://4a0e-1-21-49-250.ngrok-free.app/api/ig-accounts/oauth/callback
+## 補足
 
-docker compose -f docker-compose.dev.yml up -d
+- 初回管理者は migration 時に投入されます。既存DBにユーザーが存在しない場合も、追加した seed migration を適用すれば再作成されます。
+- `app/.env` は Git 管理しないでください。
+- Vercel の Preview URL は OAuth / Webhook 用の正式 URL には使わず、本番ドメインを `APP_BASE_URL` に設定してください。

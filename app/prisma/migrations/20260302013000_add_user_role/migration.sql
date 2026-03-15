@@ -1,5 +1,7 @@
-ALTER TABLE `users`
-  ADD COLUMN `role` ENUM('ADMIN', 'MEMBER') NOT NULL DEFAULT 'MEMBER' AFTER `password_hash`;
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MEMBER');
 
-UPDATE `users`
-SET `role` = 'ADMIN';
+ALTER TABLE "users"
+  ADD COLUMN "role" "UserRole" NOT NULL DEFAULT 'MEMBER';
+
+UPDATE "users"
+SET "role" = 'ADMIN';
