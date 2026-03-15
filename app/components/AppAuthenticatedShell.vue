@@ -52,6 +52,10 @@ function isNavItemActive(path: string) {
 }
 
 async function logout() {
+  if (import.meta.client && !window.confirm('ログアウトしてログイン画面に戻りますか？')) {
+    return
+  }
+
   await $fetch('/api/auth/logout', { method: 'POST' })
   clearAuthState()
   clearSessionScopedData()
@@ -82,6 +86,14 @@ async function logout() {
                     {{ meData?.user?.email }}
                   </p>
                 </div>
+                <Button
+                  class="h-8 w-fit px-2 text-muted-foreground"
+                  variant="ghost"
+                  @click="logout"
+                >
+                  <LogOut class="size-4" />
+                  ログアウト
+                </Button>
               </div>
             </div>
 
@@ -101,11 +113,6 @@ async function logout() {
                 {{ item.label }}
               </NuxtLink>
             </nav>
-
-            <Button class="w-full" variant="secondary" @click="logout">
-              <LogOut class="size-4" />
-              ログアウト
-            </Button>
           </div>
         </section>
       </aside>
