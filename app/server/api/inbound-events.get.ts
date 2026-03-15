@@ -21,11 +21,20 @@ export default defineEventHandler(async (event) => {
       platformUserId: true
     }
   })
-  const ownSenderIds = new Set(accounts.map((account) => account.platformUserId))
+  const ownSenderIds = accounts
+    .map((account) => account.platformUserId)
+    .filter((platformUserId): platformUserId is string => Boolean(platformUserId))
 
   const events = await prisma.inboundEvent.findMany({
     where: {
-      tenantId: user.tenantId
+      tenantId: user.tenantId,
+      ...(ownSenderIds.length > 0
+        ? {
+            senderId: {
+              notIn: ownSenderIds
+            }
+          }
+        : {})
     },
     orderBy: {
       createdAt: 'desc'
@@ -45,7 +54,7 @@ export default defineEventHandler(async (event) => {
     return {
       ...inboundEvent,
       senderUsername: getEventSenderUsername(inboundEvent),
-      isSelfEvent: ownSenderIds.has(inboundEvent.senderId)
+      isSelfEvent: false
     }
   })
 

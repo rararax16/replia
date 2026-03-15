@@ -17,7 +17,7 @@ function getSingleQueryParam(value: string | string[] | undefined): string {
 }
 
 function redirectWithError(event: Parameters<typeof sendRedirect>[0], message: string) {
-  return sendRedirect(event, `/dashboard?ig_error=${encodeURIComponent(message)}`)
+  return sendRedirect(event, `/instagram?ig_error=${encodeURIComponent(message)}`)
 }
 
 export default defineEventHandler(async (event) => {
@@ -90,7 +90,7 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    return sendRedirect(event, `/dashboard?ig_connected=${accounts.length}`)
+    return sendRedirect(event, `/instagram?ig_connected=${accounts.length}`)
   }
   catch (error: any) {
     const message = error?.statusMessage || error?.message || 'Instagram連携処理に失敗しました'
