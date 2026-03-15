@@ -323,62 +323,78 @@ function updateRulePriority(value: string | number) {
             登録済みルール
           </CardTitle>
           <CardDescription class="leading-6">
-            優先度の高い順に表示しています。
+            優先度の高い順に、状態と返信内容までまとめて確認できます。
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div class="overflow-hidden rounded-[1.5rem] border border-border/70">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>チャネル</TableHead>
-                  <TableHead>キーワード</TableHead>
-                  <TableHead>返信内容</TableHead>
-                  <TableHead class="w-24">優先度</TableHead>
-                  <TableHead class="w-28">状態</TableHead>
-                  <TableHead class="w-[220px]">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="rule in rules" :key="rule.id">
-                  <TableCell class="align-top">
+        <CardContent class="space-y-4">
+          <div class="flex flex-wrap gap-3 rounded-[1.5rem] border border-border/70 bg-muted/20 p-4">
+            <Badge variant="outline">
+              優先度順で判定
+            </Badge>
+            <Badge variant="outline">
+              有効 {{ activeRulesCount }}件
+            </Badge>
+            <Badge variant="outline">
+              停止中 {{ rules.length - activeRulesCount }}件
+            </Badge>
+          </div>
+
+          <div v-if="rules.length === 0" class="rounded-[1.5rem] border border-dashed border-border/70 bg-muted/10 p-8 text-center text-sm text-muted-foreground">
+            返信ルールはまだありません
+          </div>
+
+          <div v-else class="grid gap-4">
+            <section
+              v-for="rule in rules"
+              :key="rule.id"
+              class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-4 shadow-sm sm:p-5"
+            >
+              <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div class="min-w-0 flex-1 space-y-4">
+                  <div class="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">
                       {{ getChannelLabel(rule.channel) }}
                     </Badge>
-                  </TableCell>
-                  <TableCell class="align-top font-medium">
-                    {{ rule.keyword }}
-                  </TableCell>
-                  <TableCell class="max-w-xl whitespace-pre-wrap align-top text-sm leading-6 text-muted-foreground">
-                    {{ rule.replyText }}
-                  </TableCell>
-                  <TableCell class="align-top">
-                    {{ rule.priority }}
-                  </TableCell>
-                  <TableCell class="align-top">
                     <Badge :variant="rule.isActive ? 'default' : 'secondary'">
                       {{ rule.isActive ? '有効' : '無効' }}
                     </Badge>
-                  </TableCell>
-                  <TableCell class="align-top">
-                    <div class="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" @click="editRule(rule)">
-                        編集
-                      </Button>
-                      <Button size="sm" variant="secondary" @click="toggleRule(rule)">
-                        {{ rule.isActive ? '無効化' : '有効化' }}
-                      </Button>
-                      <Button size="sm" variant="destructive" @click="deleteRule(rule.id)">
-                        削除
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="rules.length === 0" :colspan="6">
-                  返信ルールはまだありません
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                    <Badge variant="secondary">
+                      優先度 {{ rule.priority }}
+                    </Badge>
+                  </div>
+
+                  <div class="space-y-2">
+                    <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      キーワード
+                    </p>
+                    <p class="break-words text-lg font-semibold leading-7 text-foreground">
+                      {{ rule.keyword }}
+                    </p>
+                  </div>
+
+                  <div class="rounded-[1.25rem] border border-border/70 bg-background/80 p-4">
+                    <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      返信内容
+                    </p>
+                    <p class="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">
+                      {{ rule.replyText }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 xl:w-[220px] xl:justify-end">
+                  <Button size="sm" variant="outline" @click="editRule(rule)">
+                    編集
+                  </Button>
+                  <Button size="sm" variant="secondary" @click="toggleRule(rule)">
+                    {{ rule.isActive ? '無効化' : '有効化' }}
+                  </Button>
+                  <Button size="sm" variant="destructive" @click="deleteRule(rule.id)">
+                    削除
+                  </Button>
+                </div>
+              </div>
+            </section>
           </div>
         </CardContent>
       </Card>
