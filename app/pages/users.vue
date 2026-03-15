@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ArrowLeft, CircleAlert, LoaderCircle, RefreshCcw, ShieldCheck, UserPlus, Users } from 'lucide-vue-next'
+
 definePageMeta({
   middleware: 'admin'
 })
@@ -23,6 +25,8 @@ const submitting = ref(false)
 const editingUserId = ref<string | null>(null)
 const { data: usersData, refresh: refreshUsers } = useFetch('/api/users')
 const users = computed<UserRow[]>(() => usersData.value?.users || [])
+const adminCount = computed(() => users.value.filter((user) => user.role === 'ADMIN').length)
+const memberCount = computed(() => users.value.filter((user) => user.role === 'MEMBER').length)
 
 const form = reactive<{
   email: string
@@ -125,260 +129,253 @@ async function deleteUser(user: UserRow) {
 function formatDate(value: string) {
   return new Date(value).toLocaleString('ja-JP')
 }
+
+function getRoleLabel(role: UserRole) {
+  return role === 'ADMIN' ? '管理者' : '一般'
+}
 </script>
 
 <template>
-  <main class="users-page">
-    <header class="top-header">
-      <div>
-        <h1>Replia ユーザーマスター</h1>
-        <p>システム管理者のみ全ユーザーの作成・更新・削除ができます。</p>
-      </div>
-      <NuxtLink class="back-link" to="/dashboard">ダッシュボードへ戻る</NuxtLink>
-    </header>
-
-    <p v-if="notice" class="notice">{{ notice }}</p>
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-
-    <section class="card">
-      <h2>{{ editingUserId ? 'ユーザー編集' : 'ユーザー作成' }}</h2>
-
-      <div class="grid two">
-        <label>
-          メールアドレス
-          <input v-model="form.email" type="email" placeholder="you@example.com" required />
-        </label>
-        <label>
-          ロール
-          <select v-model="form.role">
-            <option value="MEMBER">一般</option>
-            <option value="ADMIN">管理者</option>
-          </select>
-        </label>
-      </div>
-
-      <label>
-        パスワード
-        <input
-          v-model="form.password"
-          type="password"
-          :placeholder="editingUserId ? '変更しない場合は空欄' : '8文字以上'"
-        />
-      </label>
-
-      <div class="actions">
-        <button class="action" :disabled="submitting" @click="saveUser">
-          {{ submitting ? '保存中...' : editingUserId ? '更新する' : '作成する' }}
-        </button>
-        <button v-if="editingUserId" class="secondary" @click="resetForm">編集をキャンセル</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="section-head">
-        <h2>ユーザー一覧</h2>
-        <button class="secondary" @click="() => refreshUsers()">再読み込み</button>
-      </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>メールアドレス</th>
-              <th>ロール</th>
-              <th>作成日時</th>
-              <th>更新日時</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="user in users" :key="user.id">
-              <td>{{ user.email }}</td>
-              <td>{{ user.role === 'ADMIN' ? '管理者' : '一般' }}</td>
-              <td>{{ formatDate(user.createdAt) }}</td>
-              <td>{{ formatDate(user.updatedAt) }}</td>
-              <td>
-                <div class="row-actions">
-                  <button class="mini" @click="editUser(user)">編集</button>
-                  <button class="mini danger" @click="deleteUser(user)">削除</button>
+  <main class="px-4 py-6 sm:px-6 sm:py-8">
+    <div class="mx-auto flex max-w-7xl flex-col gap-6">
+      <section class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+        <div class="flex flex-col gap-6 p-6 sm:p-8">
+          <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div class="space-y-4">
+              <AppBrandMark />
+              <div class="space-y-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Badge class="rounded-full px-3 py-1">
+                    システム管理者専用
+                  </Badge>
+                  <Badge variant="secondary" class="rounded-full px-3 py-1">
+                    全ユーザーの作成・更新・削除
+                  </Badge>
                 </div>
-              </td>
-            </tr>
-            <tr v-if="users.length === 0">
-              <td colspan="5">ユーザーはまだ登録されていません</td>
-            </tr>
-          </tbody>
-        </table>
+                <div class="space-y-2">
+                  <h1 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                    ユーザーマスター
+                  </h1>
+                  <p class="max-w-3xl text-sm leading-7 text-muted-foreground sm:text-base">
+                    ロール管理とアカウント発行を shadcn ベースの管理 UI に統一し、一覧と編集フォームを分かりやすく整理しました。
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button as-child variant="outline">
+              <NuxtLink to="/dashboard">
+                <ArrowLeft class="size-4" />
+                ダッシュボードへ戻る
+              </NuxtLink>
+            </Button>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-3">
+            <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-sm font-medium text-muted-foreground">
+                    総ユーザー数
+                  </p>
+                  <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+                    {{ users.length }}件
+                  </p>
+                </div>
+                <div class="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Users class="size-5" />
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-sm font-medium text-muted-foreground">
+                    管理者
+                  </p>
+                  <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+                    {{ adminCount }}件
+                  </p>
+                </div>
+                <div class="flex size-11 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
+                  <ShieldCheck class="size-5" />
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-sm font-medium text-muted-foreground">
+                    一般ユーザー
+                  </p>
+                  <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+                    {{ memberCount }}件
+                  </p>
+                </div>
+                <div class="flex size-11 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-700">
+                  <UserPlus class="size-5" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Alert v-if="notice">
+        <ShieldCheck class="size-4" />
+        <AlertTitle>操作が完了しました</AlertTitle>
+        <AlertDescription>{{ notice }}</AlertDescription>
+      </Alert>
+
+      <Alert v-if="errorMessage" variant="destructive">
+        <CircleAlert class="size-4" />
+        <AlertTitle>処理に失敗しました</AlertTitle>
+        <AlertDescription>{{ errorMessage }}</AlertDescription>
+      </Alert>
+
+      <div class="grid gap-6 xl:grid-cols-[420px_1fr]">
+        <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+          <CardHeader class="gap-3">
+            <div class="flex items-center gap-2">
+              <CardTitle class="text-2xl">
+                {{ editingUserId ? 'ユーザー編集' : 'ユーザー作成' }}
+              </CardTitle>
+              <Badge v-if="editingUserId" variant="secondary">
+                編集中
+              </Badge>
+            </div>
+            <CardDescription class="leading-6">
+              ログイン情報とロールを設定します。既存ユーザー編集時、パスワード変更が不要なら空欄のままで構いません。
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <form class="space-y-5" @submit.prevent="saveUser">
+              <div class="space-y-2">
+                <Label for="user-email">メールアドレス</Label>
+                <Input
+                  id="user-email"
+                  v-model="form.email"
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                />
+              </div>
+
+              <div class="space-y-2">
+                <Label for="user-role">ロール</Label>
+                <Select v-model="form.role">
+                  <SelectTrigger id="user-role">
+                    <SelectValue placeholder="ロールを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MEMBER">
+                      一般
+                    </SelectItem>
+                    <SelectItem value="ADMIN">
+                      管理者
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div class="space-y-2">
+                <Label for="user-password">パスワード</Label>
+                <Input
+                  id="user-password"
+                  v-model="form.password"
+                  type="password"
+                  :placeholder="editingUserId ? '変更しない場合は空欄' : '8文字以上'"
+                  :required="!editingUserId"
+                />
+              </div>
+
+              <div class="flex flex-wrap gap-3">
+                <Button type="submit" :disabled="submitting">
+                  <LoaderCircle v-if="submitting" class="size-4 animate-spin" />
+                  {{ submitting ? '保存中...' : editingUserId ? '更新する' : '作成する' }}
+                </Button>
+                <Button
+                  v-if="editingUserId"
+                  type="button"
+                  variant="outline"
+                  @click="resetForm"
+                >
+                  編集をキャンセル
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+          <CardHeader class="gap-4">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div class="space-y-2">
+                <CardTitle class="text-2xl">
+                  ユーザー一覧
+                </CardTitle>
+                <CardDescription class="leading-6">
+                  登録済みユーザーを作成日時順に表示しています。
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="outline" @click="refreshUsers">
+                <RefreshCcw class="size-4" />
+                再読み込み
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div class="overflow-hidden rounded-[1.5rem] border border-border/70">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>メールアドレス</TableHead>
+                    <TableHead class="w-32">ロール</TableHead>
+                    <TableHead class="w-44">作成日時</TableHead>
+                    <TableHead class="w-44">更新日時</TableHead>
+                    <TableHead class="w-[220px]">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="user in users" :key="user.id">
+                    <TableCell class="font-medium">
+                      {{ user.email }}
+                    </TableCell>
+                    <TableCell>
+                      <Badge :variant="user.role === 'ADMIN' ? 'default' : 'secondary'">
+                        {{ getRoleLabel(user.role) }}
+                      </Badge>
+                    </TableCell>
+                    <TableCell class="text-sm text-muted-foreground">
+                      {{ formatDate(user.createdAt) }}
+                    </TableCell>
+                    <TableCell class="text-sm text-muted-foreground">
+                      {{ formatDate(user.updatedAt) }}
+                    </TableCell>
+                    <TableCell>
+                      <div class="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" @click="editUser(user)">
+                          編集
+                        </Button>
+                        <Button size="sm" variant="destructive" @click="deleteUser(user)">
+                          削除
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="users.length === 0" :colspan="5">
+                    ユーザーはまだ登録されていません
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </section>
+    </div>
   </main>
 </template>
-
-<style scoped>
-.users-page {
-  min-height: 100vh;
-  padding: 18px;
-  background: linear-gradient(180deg, #f7fbff 0%, #eaf4f8 100%);
-  font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
-  color: #18303d;
-}
-
-.top-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-h1 {
-  margin: 0;
-  font-size: 24px;
-}
-
-h2 {
-  margin: 0 0 12px;
-  font-size: 20px;
-}
-
-p {
-  margin: 4px 0;
-}
-
-.back-link {
-  background: #d6e5eb;
-  color: #1f3f4f;
-  text-decoration: none;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-weight: 700;
-}
-
-.notice {
-  background: #def7eb;
-  border: 1px solid #87c9a8;
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.error {
-  background: #ffe7e4;
-  border: 1px solid #e79a91;
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.card {
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 10px 30px rgba(14, 44, 61, 0.08);
-  margin-bottom: 16px;
-}
-
-.grid {
-  display: grid;
-  gap: 10px;
-}
-
-.grid.two {
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-}
-
-label {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 10px;
-  font-weight: 600;
-}
-
-input,
-select {
-  border: 1px solid #90aeb8;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 14px;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
-.action,
-.secondary,
-.mini {
-  border: none;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.action {
-  background: #0c7d5f;
-  color: #fff;
-}
-
-.secondary {
-  background: #d6e5eb;
-  color: #1f3f4f;
-}
-
-.row-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.mini {
-  padding: 6px 10px;
-  background: #dbe7ed;
-  color: #13394b;
-}
-
-.mini.danger {
-  background: #f6d6d1;
-  color: #7b1f13;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  border-bottom: 1px solid #dbe7ed;
-  text-align: left;
-  padding: 10px 8px;
-  vertical-align: top;
-  font-size: 14px;
-}
-
-.section-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-@media (max-width: 768px) {
-  .users-page {
-    padding: 12px;
-  }
-
-  .top-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .row-actions {
-    flex-wrap: wrap;
-  }
-}
-</style>

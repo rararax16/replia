@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ArrowRight, CircleAlert, Instagram, LoaderCircle, MessageSquare, ShieldCheck } from 'lucide-vue-next'
+
 definePageMeta({
   middleware: 'guest'
 })
@@ -11,6 +13,24 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
+
+const highlights = [
+  {
+    title: 'Meta 認可で連携',
+    description: 'アクセストークンを直接扱わずに Instagram ビジネスアカウントを接続できます。',
+    icon: Instagram
+  },
+  {
+    title: '返信ルール管理',
+    description: 'DM とコメント別にキーワード返信を整理し、優先度まで一元管理します。',
+    icon: MessageSquare
+  },
+  {
+    title: '管理者運用',
+    description: 'ユーザー権限とイベント履歴を同じ管理画面から確認できます。',
+    icon: ShieldCheck
+  }
+]
 
 async function submit() {
   loading.value = true
@@ -38,133 +58,134 @@ async function submit() {
 </script>
 
 <template>
-  <main class="auth-page">
-    <section class="auth-card">
-      <h1>Replia</h1>
-      <p class="lead">Instagram DM/コメント自動返信ルールを管理できます。</p>
-      <p class="notice">ユーザーの新規作成は管理者ユーザーのみ実行できます。</p>
+  <main class="px-4 py-8 sm:px-6 sm:py-10">
+    <div class="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+      <Card class="overflow-hidden border-white/70 bg-white/80 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+        <CardContent class="flex h-full flex-col justify-between gap-10 p-6 sm:p-8">
+          <div class="space-y-8">
+            <AppBrandMark />
 
-      <form class="auth-form" @submit.prevent="submit">
-        <label>
-          メールアドレス
-          <input v-model="email" type="email" placeholder="you@example.com" required />
-        </label>
+            <div class="space-y-4">
+              <Badge variant="secondary" class="rounded-full px-3 py-1">
+                日本向け Instagram 運用プロトタイプ
+              </Badge>
+              <div class="space-y-3">
+                <h1 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                  返信ルールと運用ログを、
+                  ひとつの管理画面へ。
+                </h1>
+                <p class="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+                  Replia は Instagram の DM / コメント自動返信を日本語 UI で管理するためのプロトタイプです。
+                  ルール作成、アカウント連携、受信イベント確認を一貫した操作感に揃えています。
+                </p>
+              </div>
+            </div>
 
-        <label>
-          パスワード
-          <input v-model="password" type="password" placeholder="8文字以上" required />
-        </label>
+            <div class="grid gap-3 sm:grid-cols-3">
+              <div
+                v-for="item in highlights"
+                :key="item.title"
+                class="rounded-2xl border border-border/70 bg-muted/35 p-4"
+              >
+                <div class="mb-3 flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <component :is="item.icon" class="size-5" />
+                </div>
+                <p class="font-semibold text-foreground">
+                  {{ item.title }}
+                </p>
+                <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                  {{ item.description }}
+                </p>
+              </div>
+            </div>
+          </div>
 
-        <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+          <div class="rounded-[1.75rem] bg-slate-950 p-6 text-slate-50 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.8)]">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">
+                  Operation Notes
+                </p>
+                <p class="mt-2 text-xl font-bold">
+                  管理者ユーザーのみ新規ユーザーを作成できます
+                </p>
+              </div>
+              <ArrowRight class="hidden size-5 text-slate-400 sm:block" />
+            </div>
+            <p class="mt-4 text-sm leading-6 text-slate-300">
+              まずは管理者アカウントでログインし、Instagram 連携と返信ルール設定から開始してください。
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
-        <button class="submit" :disabled="loading">
-          {{ loading ? '送信中...' : 'ログイン' }}
-        </button>
-      </form>
+      <Card class="border-white/70 bg-white/90 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+        <CardHeader class="space-y-4 p-6 sm:p-8">
+          <div class="space-y-2">
+            <CardTitle class="text-2xl">
+              ログイン
+            </CardTitle>
+            <CardDescription class="leading-6">
+              登録済みメールアドレスとパスワードで管理画面に入ります。
+            </CardDescription>
+          </div>
 
-      <p class="policy-links">
-        <NuxtLink to="/privacy">プライバシーポリシー</NuxtLink>
-        <span>・</span>
-        <NuxtLink to="/terms">利用規約</NuxtLink>
-      </p>
-    </section>
+          <Alert>
+            <ShieldCheck class="size-4" />
+            <AlertTitle>運用ルール</AlertTitle>
+            <AlertDescription>
+              ユーザーの新規作成は管理者ユーザーのみ実行できます。
+            </AlertDescription>
+          </Alert>
+        </CardHeader>
+
+        <CardContent class="space-y-5 px-6 pb-6 sm:px-8 sm:pb-8">
+          <form class="space-y-5" @submit.prevent="submit">
+            <div class="space-y-2">
+              <Label for="email">メールアドレス</Label>
+              <Input
+                id="email"
+                v-model="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+
+            <div class="space-y-2">
+              <Label for="password">パスワード</Label>
+              <Input
+                id="password"
+                v-model="password"
+                type="password"
+                placeholder="8文字以上"
+                required
+              />
+            </div>
+
+            <Alert v-if="errorMessage" variant="destructive">
+              <CircleAlert class="size-4" />
+              <AlertTitle>ログインに失敗しました</AlertTitle>
+              <AlertDescription>{{ errorMessage }}</AlertDescription>
+            </Alert>
+
+            <Button class="w-full" type="submit" :disabled="loading">
+              <LoaderCircle v-if="loading" class="size-4 animate-spin" />
+              {{ loading ? '送信中...' : 'ログイン' }}
+            </Button>
+          </form>
+        </CardContent>
+
+        <CardFooter class="flex flex-wrap items-center gap-3 border-t bg-muted/25 px-6 py-5 text-sm text-muted-foreground sm:px-8">
+          <NuxtLink class="font-medium text-primary hover:text-primary/80" to="/privacy">
+            プライバシーポリシー
+          </NuxtLink>
+          <span class="text-border">/</span>
+          <NuxtLink class="font-medium text-primary hover:text-primary/80" to="/terms">
+            利用規約
+          </NuxtLink>
+        </CardFooter>
+      </Card>
+    </div>
   </main>
 </template>
-
-<style scoped>
-.auth-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: linear-gradient(160deg, #f4fff8 0%, #dceef5 100%);
-  font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 520px;
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 20px 50px rgba(28, 58, 75, 0.15);
-}
-
-h1 {
-  margin: 0;
-  font-size: 24px;
-  color: #1a2f3a;
-}
-
-.lead {
-  margin: 8px 0 20px;
-  color: #395261;
-}
-
-.notice {
-  margin: 0 0 16px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #e9f4fb;
-  color: #254a63;
-  font-size: 13px;
-}
-
-.auth-form {
-  display: grid;
-  gap: 14px;
-}
-
-label {
-  display: grid;
-  gap: 6px;
-  color: #223d4c;
-  font-weight: 600;
-}
-
-input {
-  width: 100%;
-  border: 1px solid #9eb9c3;
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 14px;
-}
-
-.error {
-  margin: 0;
-  color: #c0392b;
-}
-
-.submit {
-  border: none;
-  border-radius: 10px;
-  background: #0f6a51;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  padding: 12px;
-  cursor: pointer;
-}
-
-.submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.policy-links {
-  margin: 16px 0 0;
-  text-align: center;
-  color: #526b78;
-  font-size: 13px;
-}
-
-.policy-links a {
-  color: #0f6a51;
-  text-decoration: none;
-  font-weight: 700;
-}
-
-.policy-links a:hover {
-  text-decoration: underline;
-}
-</style>

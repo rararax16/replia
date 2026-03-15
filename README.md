@@ -45,6 +45,19 @@ docker compose -f docker-compose.dev.yml exec app sh
 
 Compose では PostgreSQL コンテナを起動し、アプリ側には `postgresql://app_user:app_pass@postgres:5432/app_db?schema=public` を渡します。
 
+UI ライブラリや Nuxt module など依存を追加したあと、すでに `app` コンテナを起動済みならコンテナ内の `node_modules` が古いままです。次のいずれかを実行してください。
+
+```bash
+docker compose -f docker-compose.dev.yml exec app npm install
+docker compose -f docker-compose.dev.yml exec app npm run dev
+```
+
+または `app` コンテナだけ再作成します。
+
+```bash
+docker compose -f docker-compose.dev.yml up --build -d app
+```
+
 ## Prisma
 
 通常ビルド:
