@@ -180,34 +180,37 @@ async function updatePassword() {
           <form class="space-y-5" @submit.prevent="updatePassword">
             <div class="space-y-2">
               <Label for="current-password">現在のパスワード</Label>
-              <Input
+              <AppPasswordInput
                 id="current-password"
                 v-model="form.currentPassword"
-                type="password"
+                autocomplete="current-password"
                 placeholder="現在のパスワードを入力"
                 required
+                toggle-label="現在のパスワード"
               />
             </div>
 
             <div class="space-y-2">
               <Label for="new-password">新しいパスワード</Label>
-              <Input
+              <AppPasswordInput
                 id="new-password"
                 v-model="form.newPassword"
-                type="password"
+                autocomplete="new-password"
                 placeholder="8文字以上で入力"
                 required
+                toggle-label="新しいパスワード"
               />
             </div>
 
             <div class="space-y-2">
               <Label for="confirm-password">新しいパスワード（確認用）</Label>
-              <Input
+              <AppPasswordInput
                 id="confirm-password"
                 v-model="form.confirmPassword"
-                type="password"
+                autocomplete="new-password"
                 placeholder="確認用でもう一度入力"
                 required
+                toggle-label="確認用パスワード"
               />
             </div>
 

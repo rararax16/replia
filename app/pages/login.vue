@@ -155,10 +155,10 @@ async function submit() {
 
             <div class="space-y-2">
               <Label for="password">パスワード</Label>
-              <Input
+              <AppPasswordInput
                 id="password"
                 v-model="password"
-                type="password"
+                autocomplete="current-password"
                 placeholder="8文字以上"
                 required
               />
