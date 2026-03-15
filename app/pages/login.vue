@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowRight, CircleAlert, Instagram, LoaderCircle, MessageSquare, ShieldCheck } from 'lucide-vue-next'
+import { CircleAlert, Instagram, LoaderCircle, MessageSquare, ShieldCheck } from 'lucide-vue-next'
 
 definePageMeta({
   middleware: 'guest'
@@ -62,13 +62,13 @@ async function submit() {
   <main class="px-4 py-8 sm:px-6 sm:py-10">
     <div class="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       <Card class="overflow-hidden border-white/70 bg-white/80 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
-        <CardContent class="flex h-full flex-col justify-between gap-10 p-6 sm:p-8">
+        <CardContent class="flex h-full flex-col gap-10 p-6 sm:p-8">
           <div class="space-y-8">
             <AppBrandMark />
 
             <div class="space-y-4">
               <Badge variant="secondary" class="rounded-full px-3 py-1">
-                日本向け Instagram 運用プロトタイプ
+                Instagram自動返信 管理画面
               </Badge>
               <div class="space-y-3">
                 <h1 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
@@ -76,7 +76,7 @@ async function submit() {
                   ひとつの管理画面へ。
                 </h1>
                 <p class="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                  Replia は Instagram の DM / コメント自動返信を日本語 UI で管理するためのプロトタイプです。
+                  Replia は Instagram の DM / コメント自動返信を日本語 UI でまとめて管理するための画面です。
                   ルール作成、アカウント連携、受信イベント確認を一貫した操作感に揃えています。
                 </p>
               </div>
@@ -100,23 +100,6 @@ async function submit() {
               </div>
             </div>
           </div>
-
-          <div class="rounded-[1.75rem] bg-slate-950 p-6 text-slate-50 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.8)]">
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">
-                  Operation Notes
-                </p>
-                <p class="mt-2 text-xl font-bold">
-                  管理者ユーザーのみ新規ユーザーを作成できます
-                </p>
-              </div>
-              <ArrowRight class="hidden size-5 text-slate-400 sm:block" />
-            </div>
-            <p class="mt-4 text-sm leading-6 text-slate-300">
-              まずは管理者アカウントでログインし、Instagram 連携と返信ルール設定から開始してください。
-            </p>
-          </div>
         </CardContent>
       </Card>
 
@@ -133,9 +116,9 @@ async function submit() {
 
           <Alert>
             <ShieldCheck class="size-4" />
-            <AlertTitle>運用ルール</AlertTitle>
+            <AlertTitle>ご利用案内</AlertTitle>
             <AlertDescription>
-              ユーザーの新規作成は管理者ユーザーのみ実行できます。
+              新規ユーザーを追加できるのは管理者ユーザーのみです。
             </AlertDescription>
           </Alert>
         </CardHeader>
@@ -155,10 +138,10 @@ async function submit() {
 
             <div class="space-y-2">
               <Label for="password">パスワード</Label>
-              <Input
+              <AppPasswordInput
                 id="password"
                 v-model="password"
-                type="password"
+                autocomplete="current-password"
                 placeholder="8文字以上"
                 required
               />

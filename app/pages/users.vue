@@ -268,10 +268,11 @@ function getRoleLabel(role: UserRole) {
 
             <div class="space-y-2">
               <Label for="user-password">パスワード</Label>
-              <Input
+              <AppPasswordInput
                 id="user-password"
                 v-model="form.password"
-                type="password"
+                autocomplete="new-password"
+                toggle-label="ユーザーパスワード"
                 :placeholder="editingUserId ? '変更しない場合は空欄' : '8文字以上'"
                 :required="!editingUserId"
               />
