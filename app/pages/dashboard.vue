@@ -2,6 +2,7 @@
 import type { EventChannel, ReplyStatus } from '@prisma/client'
 import { Activity, BellRing, CheckCircle2, CircleAlert, Instagram, MessageSquareText, RefreshCcw, Users } from 'lucide-vue-next'
 import { cn } from '@/lib/utils'
+import { instagramSetupSteps } from '@/lib/instagram-setup-guide'
 import { formatDate, getChannelLabel, getReplyStatusLabel } from '@/lib/replia-ui'
 
 definePageMeta({
@@ -60,6 +61,8 @@ type NotificationItem = {
 const refreshing = ref(false)
 const notice = ref('')
 const errorMessage = ref('')
+const isGuideDialogOpen = ref(false)
+const { hideGuide } = useInstagramSetupGuidePreference()
 const authState = useAuthStateRef()
 const meData = computed(() => authState.value)
 const isAdmin = computed(() => meData.value?.user?.role === 'ADMIN')
@@ -73,6 +76,8 @@ const events = computed<InboundEvent[]>(() => eventsData.value?.events || [])
 const accounts = computed<IgAccount[]>(() => accountsData.value?.accounts || [])
 const enabledAccountsCount = computed(() => accounts.value.filter((account) => account.enabled).length)
 const activeRulesCount = computed(() => rules.value.filter((rule) => rule.isActive).length)
+const shouldShowInstagramSetupGuide = computed(() => accounts.value.length === 0 && !hideGuide.value)
+const instagramSetupPreviewSteps = computed(() => instagramSetupSteps.slice(0, 3))
 
 const quickLinks = computed(() => {
   const items = [
@@ -108,16 +113,18 @@ const notifications = computed<NotificationItem[]>(() => {
   const items: NotificationItem[] = []
 
   if (accounts.value.length === 0) {
-    items.push({
-      id: 'account-empty',
-      title: 'Instagramアカウントが未連携です',
-      description: '自動返信を開始するには、まず Instagram ビジネスアカウントの接続が必要です。',
-      detail: '連携設定が必要',
-      to: '/instagram',
-      cta: '連携画面へ',
-      icon: Instagram,
-      tone: 'warning'
-    })
+    if (!shouldShowInstagramSetupGuide.value) {
+      items.push({
+        id: 'account-empty',
+        title: 'Instagramアカウントが未連携です',
+        description: '自動返信を開始するには、まず Instagram ビジネスアカウントの接続が必要です。',
+        detail: '連携設定が必要',
+        to: '/instagram',
+        cta: '連携画面へ',
+        icon: Instagram,
+        tone: 'warning'
+      })
+    }
   }
   else if (enabledAccountsCount.value === 0) {
     items.push({
@@ -281,6 +288,65 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
       <AlertDescription>{{ errorMessage }}</AlertDescription>
     </Alert>
 
+    <Card
+      v-if="shouldShowInstagramSetupGuide"
+      class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur"
+    >
+      <CardHeader class="gap-2">
+        <CardTitle class="text-2xl">
+          先に Instagram をビジネスアカウントへ切り替えてください
+        </CardTitle>
+        <CardDescription class="leading-6">
+          まだ連携アカウントがありません。まずは Instagram 側でビジネスアカウントへ変更し、その後に Meta 認証で接続してください。
+        </CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-5">
+        <div class="grid gap-4 lg:grid-cols-3">
+          <article
+            v-for="(step, index) in instagramSetupPreviewSteps"
+            :key="step.id"
+            class="rounded-[1.5rem] border border-border/70 bg-muted/20 p-5"
+          >
+            <div class="flex items-start gap-3">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">
+                {{ index + 1 }}
+              </div>
+              <div class="space-y-2">
+                <h2 class="font-semibold text-foreground">
+                  {{ step.title }}
+                </h2>
+                <p class="text-sm leading-6 text-muted-foreground">
+                  {{ step.description }}
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="flex flex-col gap-4 rounded-[1.5rem] border border-border/70 bg-muted/20 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <label class="flex items-start gap-3 text-sm leading-6 text-foreground">
+            <input
+              v-model="hideGuide"
+              type="checkbox"
+              class="mt-1 size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+            >
+            <span>今後表示しない</span>
+          </label>
+
+          <div class="flex flex-wrap gap-3">
+            <Button variant="outline" @click="isGuideDialogOpen = true">
+              手順を詳しく見る
+            </Button>
+            <Button as-child>
+              <NuxtLink to="/instagram">
+                Instagram連携へ進む
+              </NuxtLink>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
     <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
         <CardHeader class="gap-2">
@@ -377,5 +443,10 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
         </CardContent>
       </Card>
     </div>
+
+    <InstagramSetupGuideDialog
+      v-model:open="isGuideDialogOpen"
+      :show-hide-preference="true"
+    />
   </AppAuthenticatedShell>
 </template>

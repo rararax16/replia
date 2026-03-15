@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2, CircleAlert, Instagram, Link2, RefreshCcw } from 'lucide-vue-next'
+import { CheckCircle2, CircleAlert, Info, Instagram, Link2, RefreshCcw } from 'lucide-vue-next'
 import { formatDate } from '@/lib/replia-ui'
 
 definePageMeta({
@@ -23,6 +23,7 @@ const oauthConnectPath = '/api/ig-accounts/oauth/start'
 const notice = ref('')
 const errorMessage = ref('')
 const refreshing = ref(false)
+const isGuideDialogOpen = ref(false)
 
 const { data: accountsData, refresh: refreshAccounts } = useFetch('/api/ig-accounts')
 const accounts = computed<IgAccount[]>(() => accountsData.value?.accounts || [])
@@ -55,6 +56,7 @@ function getSingleQueryParam(value: string | string[] | undefined): string {
 onMounted(async () => {
   const connectedCount = getSingleQueryParam(route.query.ig_connected as string | string[] | undefined)
   const oauthError = getSingleQueryParam(route.query.ig_error as string | string[] | undefined)
+  const shouldOpenGuide = getSingleQueryParam(route.query.guide as string | string[] | undefined) === '1'
 
   if (oauthError) {
     setError(oauthError)
@@ -64,7 +66,11 @@ onMounted(async () => {
     await refreshAccounts()
   }
 
-  if (oauthError || connectedCount) {
+  if (shouldOpenGuide) {
+    isGuideDialogOpen.value = true
+  }
+
+  if (oauthError || connectedCount || shouldOpenGuide) {
     await navigateTo('/instagram', { replace: true })
   }
 })
@@ -126,6 +132,11 @@ async function disconnectAccount(account: IgAccount) {
     description="Meta の認可画面から Instagram ビジネスアカウントを接続し、稼働状態の切り替えや解除をここで管理します。"
   >
     <template #actions>
+      <Button variant="outline" size="icon" title="Instagram連携手順" @click="isGuideDialogOpen = true">
+        <span aria-label="Instagram連携手順を見る">
+          <Info class="size-4" />
+        </span>
+      </Button>
       <Button variant="outline" :disabled="refreshing" @click="refreshPage">
         <RefreshCcw class="size-4" :class="{ 'animate-spin': refreshing }" />
         再読み込み
@@ -243,9 +254,25 @@ async function disconnectAccount(account: IgAccount) {
           v-else
           class="rounded-[1.5rem] border border-dashed border-border/80 bg-muted/20 px-6 py-10 text-center text-sm leading-6 text-muted-foreground"
         >
-          連携アカウントはまだありません。まずは Meta 認証からアカウントを接続してください。
+          <p>
+            連携アカウントはまだありません。まずは Instagram アカウントをビジネスアカウントへ切り替えてから、Meta 認証で接続してください。
+          </p>
+          <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <Button size="sm" variant="outline" @click="isGuideDialogOpen = true">
+              連携手順を見る
+            </Button>
+            <Button as="a" size="sm" :href="oauthConnectPath">
+              Instagramと連携する
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
+
+    <InstagramSetupGuideDialog
+      v-model:open="isGuideDialogOpen"
+      :show-hide-preference="true"
+      :oauth-connect-path="oauthConnectPath"
+    />
   </AppAuthenticatedShell>
 </template>

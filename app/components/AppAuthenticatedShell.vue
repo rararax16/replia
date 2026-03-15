@@ -47,6 +47,10 @@ const navItems = computed(() => {
   return items
 })
 
+function isNavItemActive(path: string) {
+  return route.path === path || route.path.startsWith(`${path}/`)
+}
+
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   clearAuthState()
@@ -105,7 +109,7 @@ async function logout() {
               :to="item.to"
               :class="cn(
                 'inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors',
-                route.path === item.to
+                isNavItemActive(item.to)
                   ? 'bg-primary text-primary-foreground shadow'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )"
