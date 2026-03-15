@@ -61,21 +61,61 @@ async function logout() {
 
 <template>
   <main class="px-4 py-6 sm:px-6 sm:py-8">
-    <div class="mx-auto flex max-w-7xl flex-col gap-6">
-      <section class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
-        <div class="flex flex-col gap-6 p-6 sm:p-8">
-          <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+    <div class="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <aside class="xl:sticky xl:top-8 xl:self-start">
+        <section class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+          <div class="flex flex-col gap-6 p-5 sm:p-6">
             <div class="space-y-4">
               <AppBrandMark />
 
-              <div class="space-y-3">
+              <div class="space-y-3 rounded-[1.5rem] border border-border/70 bg-muted/20 p-4">
                 <div class="flex flex-wrap items-center gap-2">
                   <Badge class="rounded-full px-3 py-1">
                     {{ isAdmin ? 'システム管理者' : '一般ユーザー' }}
                   </Badge>
-                  <Badge variant="secondary" class="rounded-full px-3 py-1">
-                    ログイン中: {{ meData?.user?.email }}
-                  </Badge>
+                </div>
+                <div class="space-y-1">
+                  <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    ログイン中
+                  </p>
+                  <p class="break-all text-sm font-medium text-foreground">
+                    {{ meData?.user?.email }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <nav class="flex flex-col gap-2">
+              <NuxtLink
+                v-for="item in navItems"
+                :key="item.to"
+                :to="item.to"
+                :class="cn(
+                  'inline-flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors',
+                  isNavItemActive(item.to)
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'border border-transparent text-muted-foreground hover:border-border/70 hover:bg-muted/40 hover:text-foreground'
+                )"
+              >
+                <component :is="item.icon" class="size-4" />
+                {{ item.label }}
+              </NuxtLink>
+            </nav>
+
+            <Button class="w-full" variant="secondary" @click="logout">
+              <LogOut class="size-4" />
+              ログアウト
+            </Button>
+          </div>
+        </section>
+      </aside>
+
+      <div class="min-w-0 space-y-6">
+        <section class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+          <div class="flex flex-col gap-6 p-6 sm:p-8">
+            <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+              <div class="space-y-4">
+                <div class="flex flex-wrap items-center gap-2">
                   <slot name="badges" />
                 </div>
 
@@ -88,41 +128,20 @@ async function logout() {
                   </p>
                 </div>
               </div>
+
+              <div v-if="$slots.actions" class="flex flex-wrap gap-3 xl:justify-end">
+                <slot name="actions" />
+              </div>
             </div>
 
-            <div class="flex flex-wrap gap-3">
-              <slot name="actions" />
-              <Button variant="secondary" @click="logout">
-                <LogOut class="size-4" />
-                ログアウト
-              </Button>
+            <div v-if="$slots.hero" class="grid gap-4 md:grid-cols-3">
+              <slot name="hero" />
             </div>
           </div>
+        </section>
 
-          <div v-if="$slots.hero" class="grid gap-4 md:grid-cols-3">
-            <slot name="hero" />
-          </div>
-
-          <nav class="flex flex-wrap gap-2 rounded-[1.5rem] border border-border/70 bg-white/60 p-2">
-            <NuxtLink
-              v-for="item in navItems"
-              :key="item.to"
-              :to="item.to"
-              :class="cn(
-                'inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors',
-                isNavItemActive(item.to)
-                  ? 'bg-primary text-primary-foreground shadow'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              )"
-            >
-              <component :is="item.icon" class="size-4" />
-              {{ item.label }}
-            </NuxtLink>
-          </nav>
-        </div>
-      </section>
-
-      <slot />
+        <slot />
+      </div>
     </div>
   </main>
 </template>
