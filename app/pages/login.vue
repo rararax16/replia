@@ -45,6 +45,7 @@ async function submit() {
       }
     })
 
+    clearSessionScopedData()
     await ensureAuthState(true)
     await navigateTo('/dashboard')
   }

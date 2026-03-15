@@ -13,6 +13,6 @@ export default defineEventHandler(async (event) => {
   }
   catch (error: any) {
     const message = error?.statusMessage || error?.message || 'Instagram連携の設定に失敗しました'
-    return sendRedirect(event, `/dashboard?ig_error=${encodeURIComponent(message)}`)
+    return sendRedirect(event, `/instagram?ig_error=${encodeURIComponent(message)}`)
   }
 })

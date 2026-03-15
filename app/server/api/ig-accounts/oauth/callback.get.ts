@@ -17,7 +17,7 @@ function getSingleQueryParam(value: string | string[] | undefined): string {
 }
 
 function redirectWithError(event: Parameters<typeof sendRedirect>[0], message: string) {
-  return sendRedirect(event, `/dashboard?ig_error=${encodeURIComponent(message)}`)
+  return sendRedirect(event, `/instagram?ig_error=${encodeURIComponent(message)}`)
 }
 
 export default defineEventHandler(async (event) => {
@@ -67,20 +67,44 @@ export default defineEventHandler(async (event) => {
 
     await prisma.$transaction(async (tx) => {
       for (const account of accounts) {
-        await tx.igAccount.upsert({
+        const existing = await tx.igAccount.findUnique({
           where: {
             tenantId_platformUserId: {
               tenantId: user.tenantId,
               platformUserId: account.instagramUserId
             }
           },
-          update: {
-            username: account.instagramUsername,
-            accessTokenEncrypted: encryptText(account.accessToken),
-            enabled: true
-          },
-          create: {
+          select: {
+            id: true,
+            userId: true
+          }
+        })
+
+        if (existing && existing.userId !== user.id) {
+          throw createError({
+            statusCode: 409,
+            statusMessage: `@${account.instagramUsername} は別ユーザーに連携されています`
+          })
+        }
+
+        if (existing) {
+          await tx.igAccount.update({
+            where: {
+              id: existing.id
+            },
+            data: {
+              username: account.instagramUsername,
+              accessTokenEncrypted: encryptText(account.accessToken),
+              enabled: true
+            }
+          })
+          continue
+        }
+
+        await tx.igAccount.create({
+          data: {
             tenantId: user.tenantId,
+            userId: user.id,
             platformUserId: account.instagramUserId,
             username: account.instagramUsername,
             accessTokenEncrypted: encryptText(account.accessToken),
@@ -90,7 +114,7 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    return sendRedirect(event, `/dashboard?ig_connected=${accounts.length}`)
+    return sendRedirect(event, `/instagram?ig_connected=${accounts.length}`)
   }
   catch (error: any) {
     const message = error?.statusMessage || error?.message || 'Instagram連携処理に失敗しました'

@@ -1,0 +1,387 @@
+<script setup lang="ts">
+import type { EventChannel } from '@prisma/client'
+import { CheckCircle2, CircleAlert, MessageSquareText, RefreshCcw, Sparkles } from 'lucide-vue-next'
+import { getChannelLabel } from '@/lib/replia-ui'
+
+definePageMeta({
+  middleware: 'auth'
+})
+
+useHead({
+  title: '返信ルール | Replia'
+})
+
+type ReplyRule = {
+  id: string
+  channel: EventChannel
+  keyword: string
+  replyText: string
+  priority: number
+  isActive: boolean
+  createdAt: string
+}
+
+const notice = ref('')
+const errorMessage = ref('')
+const savingRule = ref(false)
+const refreshing = ref(false)
+const editingRuleId = ref<string | null>(null)
+
+const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
+const rules = computed<ReplyRule[]>(() => rulesData.value?.rules || [])
+const activeRulesCount = computed(() => rules.value.filter((rule) => rule.isActive).length)
+const dmRulesCount = computed(() => rules.value.filter((rule) => rule.channel === 'DM').length)
+const commentRulesCount = computed(() => rules.value.filter((rule) => rule.channel === 'COMMENT').length)
+
+const ruleForm = reactive({
+  channel: 'DM' as EventChannel,
+  keyword: '',
+  replyText: '',
+  priority: 100,
+  isActive: true
+})
+
+function setNotice(message: string) {
+  notice.value = message
+  errorMessage.value = ''
+}
+
+function setError(message: string) {
+  errorMessage.value = message
+  notice.value = ''
+}
+
+function resetRuleForm() {
+  editingRuleId.value = null
+  ruleForm.channel = 'DM'
+  ruleForm.keyword = ''
+  ruleForm.replyText = ''
+  ruleForm.priority = 100
+  ruleForm.isActive = true
+}
+
+async function refreshPage() {
+  refreshing.value = true
+
+  try {
+    await refreshRules()
+    setNotice('返信ルール一覧を更新しました')
+  }
+  catch (error: any) {
+    setError(error?.data?.statusMessage || '返信ルール一覧の更新に失敗しました')
+  }
+  finally {
+    refreshing.value = false
+  }
+}
+
+async function saveRule() {
+  savingRule.value = true
+
+  try {
+    if (editingRuleId.value) {
+      await $fetch(`/api/reply-rules/${editingRuleId.value}`, {
+        method: 'PUT',
+        body: ruleForm
+      })
+      setNotice('返信ルールを更新しました')
+    }
+    else {
+      await $fetch('/api/reply-rules', {
+        method: 'POST',
+        body: ruleForm
+      })
+      setNotice('返信ルールを追加しました')
+    }
+
+    resetRuleForm()
+    await refreshRules()
+  }
+  catch (error: any) {
+    setError(error?.data?.statusMessage || '返信ルールの保存に失敗しました')
+  }
+  finally {
+    savingRule.value = false
+  }
+}
+
+function editRule(rule: ReplyRule) {
+  editingRuleId.value = rule.id
+  ruleForm.channel = rule.channel
+  ruleForm.keyword = rule.keyword
+  ruleForm.replyText = rule.replyText
+  ruleForm.priority = rule.priority
+  ruleForm.isActive = rule.isActive
+}
+
+async function toggleRule(rule: ReplyRule) {
+  try {
+    await $fetch(`/api/reply-rules/${rule.id}`, {
+      method: 'PUT',
+      body: {
+        isActive: !rule.isActive
+      }
+    })
+    setNotice('ルールの有効状態を更新しました')
+    await refreshRules()
+  }
+  catch (error: any) {
+    setError(error?.data?.statusMessage || '有効状態の更新に失敗しました')
+  }
+}
+
+async function deleteRule(ruleId: string) {
+  if (!confirm('このルールを削除しますか？')) {
+    return
+  }
+
+  try {
+    await $fetch(`/api/reply-rules/${ruleId}`, {
+      method: 'DELETE'
+    })
+    setNotice('返信ルールを削除しました')
+    await refreshRules()
+  }
+  catch (error: any) {
+    setError(error?.data?.statusMessage || '返信ルールの削除に失敗しました')
+  }
+}
+
+function updateRulePriority(value: string | number) {
+  const nextValue = Number(value)
+  ruleForm.priority = Number.isFinite(nextValue) ? nextValue : 0
+}
+</script>
+
+<template>
+  <AppAuthenticatedShell
+    title="返信ルール管理"
+    description="キーワード、優先度、チャネルごとに自動返信ルールを整理し、登録済みルールの更新や無効化もここで行います。"
+  >
+    <template #actions>
+      <Button variant="outline" :disabled="refreshing" @click="refreshPage">
+        <RefreshCcw class="size-4" :class="{ 'animate-spin': refreshing }" />
+        再読み込み
+      </Button>
+    </template>
+
+    <template #hero>
+      <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">
+              総ルール数
+            </p>
+            <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+              {{ rules.length }}件
+            </p>
+          </div>
+          <div class="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <MessageSquareText class="size-5" />
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
+        <p class="text-sm font-medium text-muted-foreground">
+          有効ルール
+        </p>
+        <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+          {{ activeRulesCount }}件
+        </p>
+        <p class="mt-4 text-sm text-muted-foreground">
+          停止中 {{ rules.length - activeRulesCount }}件
+        </p>
+      </div>
+
+      <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
+        <p class="text-sm font-medium text-muted-foreground">
+          チャネル内訳
+        </p>
+        <p class="mt-2 text-lg font-bold tracking-tight text-foreground">
+          DM {{ dmRulesCount }}件 / コメント {{ commentRulesCount }}件
+        </p>
+        <p class="mt-4 text-sm text-muted-foreground">
+          優先度の高い順にマッチ判定されます
+        </p>
+      </div>
+    </template>
+
+    <Alert v-if="notice">
+      <CheckCircle2 class="size-4" />
+      <AlertTitle>操作が完了しました</AlertTitle>
+      <AlertDescription>{{ notice }}</AlertDescription>
+    </Alert>
+
+    <Alert v-if="errorMessage" variant="destructive">
+      <CircleAlert class="size-4" />
+      <AlertTitle>処理に失敗しました</AlertTitle>
+      <AlertDescription>{{ errorMessage }}</AlertDescription>
+    </Alert>
+
+    <div class="grid gap-6 xl:grid-cols-[420px_1fr]">
+      <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+        <CardHeader class="gap-3">
+          <div class="flex items-center gap-2">
+            <CardTitle class="text-2xl">
+              {{ editingRuleId ? 'ルール編集' : 'ルール追加' }}
+            </CardTitle>
+            <Badge v-if="editingRuleId" variant="secondary">
+              編集中
+            </Badge>
+          </div>
+          <CardDescription class="leading-6">
+            登録したキーワードに一致した場合、優先度順で自動返信します。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form class="space-y-5" @submit.prevent="saveRule">
+            <div class="grid gap-4 sm:grid-cols-[180px_140px]">
+              <div class="space-y-2">
+                <Label for="rule-channel">チャネル</Label>
+                <Select v-model="ruleForm.channel">
+                  <SelectTrigger id="rule-channel">
+                    <SelectValue placeholder="チャネルを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DM">
+                      DM
+                    </SelectItem>
+                    <SelectItem value="COMMENT">
+                      コメント
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div class="space-y-2">
+                <Label for="rule-priority">優先度</Label>
+                <Input
+                  id="rule-priority"
+                  type="number"
+                  :model-value="String(ruleForm.priority)"
+                  @update:model-value="updateRulePriority"
+                />
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <Label for="rule-keyword">キーワード</Label>
+              <Input
+                id="rule-keyword"
+                v-model="ruleForm.keyword"
+                type="text"
+                placeholder="資料"
+                required
+              />
+            </div>
+
+            <div class="space-y-2">
+              <Label for="rule-reply">返信内容</Label>
+              <Textarea
+                id="rule-reply"
+                v-model="ruleForm.replyText"
+                rows="4"
+                placeholder="お問い合わせありがとうございます。"
+                required
+              />
+            </div>
+
+            <div class="flex flex-col gap-4 rounded-[1.5rem] border border-border/70 bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div class="space-y-1">
+                <p class="font-medium text-foreground">
+                  このルールを有効にする
+                </p>
+                <p class="text-sm text-muted-foreground">
+                  無効にすると条件を残したまま返信対象から外れます。
+                </p>
+              </div>
+              <Switch v-model:checked="ruleForm.isActive" aria-label="ルールの有効化切替" />
+            </div>
+
+            <div class="flex flex-wrap gap-3">
+              <Button type="submit" :disabled="savingRule">
+                <Sparkles class="size-4" />
+                {{ savingRule ? '保存中...' : editingRuleId ? 'ルール更新' : 'ルール追加' }}
+              </Button>
+              <Button
+                v-if="editingRuleId"
+                type="button"
+                variant="outline"
+                @click="resetRuleForm"
+              >
+                編集をキャンセル
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+        <CardHeader class="gap-2">
+          <CardTitle class="text-2xl">
+            登録済みルール
+          </CardTitle>
+          <CardDescription class="leading-6">
+            優先度の高い順に表示しています。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div class="overflow-hidden rounded-[1.5rem] border border-border/70">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>チャネル</TableHead>
+                  <TableHead>キーワード</TableHead>
+                  <TableHead>返信内容</TableHead>
+                  <TableHead class="w-24">優先度</TableHead>
+                  <TableHead class="w-28">状態</TableHead>
+                  <TableHead class="w-[220px]">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="rule in rules" :key="rule.id">
+                  <TableCell class="align-top">
+                    <Badge variant="outline">
+                      {{ getChannelLabel(rule.channel) }}
+                    </Badge>
+                  </TableCell>
+                  <TableCell class="align-top font-medium">
+                    {{ rule.keyword }}
+                  </TableCell>
+                  <TableCell class="max-w-xl whitespace-pre-wrap align-top text-sm leading-6 text-muted-foreground">
+                    {{ rule.replyText }}
+                  </TableCell>
+                  <TableCell class="align-top">
+                    {{ rule.priority }}
+                  </TableCell>
+                  <TableCell class="align-top">
+                    <Badge :variant="rule.isActive ? 'default' : 'secondary'">
+                      {{ rule.isActive ? '有効' : '無効' }}
+                    </Badge>
+                  </TableCell>
+                  <TableCell class="align-top">
+                    <div class="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" @click="editRule(rule)">
+                        編集
+                      </Button>
+                      <Button size="sm" variant="secondary" @click="toggleRule(rule)">
+                        {{ rule.isActive ? '無効化' : '有効化' }}
+                      </Button>
+                      <Button size="sm" variant="destructive" @click="deleteRule(rule.id)">
+                        削除
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="rules.length === 0" :colspan="6">
+                  返信ルールはまだありません
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  </AppAuthenticatedShell>
+</template>

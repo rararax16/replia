@@ -37,6 +37,7 @@ export default defineEventHandler(async (event) => {
   const rule = await prisma.replyRule.create({
     data: {
       tenantId: user.tenantId,
+      userId: user.id,
       channel,
       keyword,
       replyText,
