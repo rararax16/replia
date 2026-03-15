@@ -1,4 +1,8 @@
 <script setup lang="ts">
+useHead({
+  title: '利用規約 | Replia'
+})
+
 const updatedAt = '2026年3月2日'
 </script>
 
@@ -7,7 +11,7 @@ const updatedAt = '2026年3月2日'
     <section class="terms-card">
       <h1>利用規約</h1>
       <p class="lead">
-        本利用規約（以下「本規約」）は、Instagram DM/コメント自動返信プロトタイプ（以下「本サービス」）の
+        本利用規約（以下「本規約」）は、Replia（以下「本サービス」）の
         利用条件を定めるものです。本サービスを利用する場合、本規約に同意したものとみなします。
       </p>
 

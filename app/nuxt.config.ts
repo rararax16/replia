@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   app: {
     head: {
+      title: 'Replia',
       link: [
         { rel: 'icon', type: 'image/png', href: '/icon.png' },
         { rel: 'shortcut icon', href: '/icon.png' },

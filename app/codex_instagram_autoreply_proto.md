@@ -1,8 +1,8 @@
-# Instagram DM/コメント 自動返信SaaS（プロトタイプ）— Codex 実装指示書  
+# Replia（Instagram DM/コメント自動返信SaaS）— Codex 実装指示書  
 （Nuxt 3 + MySQL + docker-compose / **UI言語：日本語固定**）
 
 このMarkdownは **Codexに渡して実装を進めるための単一コンテキスト**です。  
-対象は **Nuxt 3（server routes含む） + MySQL + Prisma** を使ったプロトタイプです。  
+対象は **Replia** として提供する **Nuxt 3（server routes含む） + MySQL + Prisma** のプロトタイプです。  
 **アプリの利用者は日本国内向けのため、UI・文言・管理画面はすべて日本語で実装**します。
 
 デプロイは **AWS EC2 1台に Web アプリ + DB を同居**させ、  

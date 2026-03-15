@@ -1,4 +1,8 @@
 <script setup lang="ts">
+useHead({
+  title: 'ログイン | Replia'
+})
+
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -37,8 +41,8 @@ async function submit() {
 <template>
   <main class="auth-page">
     <section class="auth-card">
-      <h1>Instagram 自動返信プロトタイプ</h1>
-      <p class="lead">日本語UIでDM/コメント自動返信ルールを管理できます。</p>
+      <h1>Replia</h1>
+      <p class="lead">Instagram DM/コメント自動返信ルールを管理できます。</p>
       <p class="notice">ユーザーの新規作成は管理者ユーザーのみ実行できます。</p>
 
       <form class="auth-form" @submit.prevent="submit">

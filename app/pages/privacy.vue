@@ -1,4 +1,8 @@
 <script setup lang="ts">
+useHead({
+  title: 'プライバシーポリシー | Replia'
+})
+
 const updatedAt = '2026年3月2日'
 </script>
 
@@ -7,7 +11,7 @@ const updatedAt = '2026年3月2日'
     <section class="privacy-card">
       <h1>プライバシーポリシー</h1>
       <p class="lead">
-        本ポリシーは、Instagram DM/コメント自動返信プロトタイプ（以下「本サービス」）における、
+        本ポリシーは、Replia（以下「本サービス」）における、
         利用者情報の取り扱いについて定めるものです。
       </p>
 

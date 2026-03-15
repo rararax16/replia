@@ -1,4 +1,8 @@
 <script setup lang="ts">
+useHead({
+  title: 'ユーザーマスター | Replia'
+})
+
 type UserRole = 'ADMIN' | 'MEMBER'
 
 type UserRow = {
@@ -134,7 +138,7 @@ function formatDate(value: string) {
   <main class="users-page">
     <header class="top-header">
       <div>
-        <h1>ユーザーマスター（システム管理者）</h1>
+        <h1>Replia ユーザーマスター</h1>
         <p>システム管理者のみ全ユーザーの作成・更新・削除ができます。</p>
       </div>
       <NuxtLink class="back-link" to="/dashboard">ダッシュボードへ戻る</NuxtLink>

@@ -1,6 +1,6 @@
-# Instagram DM/コメント自動返信プロトタイプ
+# Replia — Instagram DM/コメント自動返信
 
-日本向けの Instagram DM / コメント自動返信プロトタイプです。  
+**Replia** は日本向けの Instagram DM / コメント自動返信サービスです。  
 Nuxt 3（Nitro）を `Vercel`、DB を `Supabase PostgreSQL` に載せる前提で構成しています。
 
 ## 技術スタック

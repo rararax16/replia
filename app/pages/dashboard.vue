@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { EventChannel } from '@prisma/client'
 
+useHead({
+  title: 'ダッシュボード | Replia'
+})
+
 type ReplyRule = {
   id: string
   channel: EventChannel
@@ -264,7 +268,7 @@ function getInstagramProfileUrl(senderUsername: string) {
   <main class="dashboard-page">
     <header class="top-header">
       <div>
-        <h1>Instagram DM/コメント 自動返信</h1>
+        <h1>Replia</h1>
         <p>ログイン中: {{ meData?.user?.email }}（{{ isAdmin ? 'システム管理者' : '一般' }}）</p>
       </div>
       <div class="top-actions">
