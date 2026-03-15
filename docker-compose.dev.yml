@@ -38,7 +38,7 @@ services:
       postgres:
         condition: service_healthy
     working_dir: /app
-    command: sh -c "npm install && echo 'app コンテナ起動済み。docker compose -f docker-compose.dev.yml exec app bash で入り、npm run dev を実行してください。' && tail -f /dev/null"
+    command: sh -c "npm install && echo 'app コンテナ起動済み。docker compose -f docker-compose.dev.yml exec app bash で入り、npm run dev を実行してください。依存追加後は npm install を再実行するか app コンテナを再作成してください。' && tail -f /dev/null"
     volumes:
       - ./app:/app
       - /app/node_modules

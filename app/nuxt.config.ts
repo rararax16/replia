@@ -2,16 +2,25 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
+  css: ['~/assets/css/tailwind.css'],
+
   app: {
     head: {
       title: 'Replia',
       link: [
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap'
+        },
         { rel: 'icon', type: 'image/png', href: '/icon.png' },
         { rel: 'shortcut icon', href: '/icon.png' },
         { rel: 'apple-touch-icon', href: '/icon.png' }
       ]
     }
   },
+
   runtimeConfig: {
     appBaseUrl: process.env.APP_BASE_URL,
     sessionSecret: process.env.SESSION_SECRET,
@@ -22,5 +31,12 @@ export default defineNuxtConfig({
     metaApiVersion: process.env.META_API_VERSION || 'v24.0',
     metaOauthScopes: process.env.META_OAUTH_SCOPES ||
       'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments'
+  },
+
+  modules: ['@nuxtjs/tailwindcss', 'shadcn-nuxt'],
+
+  shadcn: {
+    prefix: '',
+    componentDir: './components/ui'
   }
 })

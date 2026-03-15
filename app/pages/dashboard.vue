@@ -1,5 +1,21 @@
 <script setup lang="ts">
-import type { EventChannel } from '@prisma/client'
+import type { EventChannel, ReplyStatus } from '@prisma/client'
+import {
+  CheckCircle2,
+  CircleAlert,
+  Clock3,
+  ExternalLink,
+  Instagram,
+  Link2,
+  LoaderCircle,
+  LogOut,
+  MessageSquare,
+  RefreshCcw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Users
+} from 'lucide-vue-next'
 
 definePageMeta({
   middleware: 'auth'
@@ -29,7 +45,7 @@ type InboundEvent = {
   createdAt: string
   outboundReplies: Array<{
     id: string
-    status: string
+    status: ReplyStatus
     replyText: string
     errorMessage: string | null
   }>
@@ -48,7 +64,9 @@ const oauthConnectPath = '/api/ig-accounts/oauth/start'
 
 const notice = ref('')
 const errorMessage = ref('')
-const submitting = ref(false)
+const savingRule = ref(false)
+const sendingTestEvent = ref(false)
+const refreshing = ref(false)
 const authState = useAuthStateRef()
 const meData = computed(() => authState.value)
 
@@ -61,6 +79,10 @@ const { data: accountsData, refresh: refreshAccounts } = useFetch('/api/ig-accou
 const rules = computed<ReplyRule[]>(() => rulesData.value?.rules || [])
 const events = computed<InboundEvent[]>(() => eventsData.value?.events || [])
 const accounts = computed<IgAccount[]>(() => accountsData.value?.accounts || [])
+const enabledAccountsCount = computed(() => accounts.value.filter((account) => account.enabled).length)
+const activeRulesCount = computed(() => rules.value.filter((rule) => rule.isActive).length)
+const processedEventsCount = computed(() => events.value.filter((event) => event.outboundReplies[0]).length)
+const latestEventAt = computed(() => events.value[0]?.createdAt || null)
 
 const editingRuleId = ref<string | null>(null)
 const ruleForm = reactive({
@@ -76,6 +98,32 @@ const inboundForm = reactive({
   senderId: '',
   senderUsername: '',
   content: ''
+})
+
+const metrics = computed(() => {
+  return [
+    {
+      title: '連携アカウント',
+      value: `${accounts.value.length}件`,
+      subtext: accounts.value.length > 0 ? `${enabledAccountsCount.value}件が有効` : 'まだ連携されていません',
+      icon: Instagram,
+      iconClass: 'bg-rose-500/10 text-rose-600'
+    },
+    {
+      title: '有効ルール',
+      value: `${activeRulesCount.value}件`,
+      subtext: `${rules.value.length}件の返信ルールを管理`,
+      icon: Sparkles,
+      iconClass: 'bg-amber-500/10 text-amber-600'
+    },
+    {
+      title: '処理済みイベント',
+      value: `${processedEventsCount.value}件`,
+      subtext: latestEventAt.value ? `最新: ${formatDate(latestEventAt.value)}` : 'イベントはまだありません',
+      icon: MessageSquare,
+      iconClass: 'bg-sky-500/10 text-sky-700'
+    }
+  ]
 })
 
 function resetRuleForm() {
@@ -133,7 +181,7 @@ async function logout() {
 }
 
 async function saveRule() {
-  submitting.value = true
+  savingRule.value = true
 
   try {
     if (editingRuleId.value) {
@@ -158,7 +206,7 @@ async function saveRule() {
     setError(error?.data?.statusMessage || '返信ルールの保存に失敗しました')
   }
   finally {
-    submitting.value = false
+    savingRule.value = false
   }
 }
 
@@ -240,6 +288,8 @@ async function disconnectAccount(account: IgAccount) {
 }
 
 async function simulateInboundEvent() {
+  sendingTestEvent.value = true
+
   try {
     await $fetch('/api/inbound-events', {
       method: 'POST',
@@ -254,6 +304,28 @@ async function simulateInboundEvent() {
   catch (error: any) {
     setError(error?.data?.statusMessage || '受信イベント処理に失敗しました')
   }
+  finally {
+    sendingTestEvent.value = false
+  }
+}
+
+async function refreshAll() {
+  refreshing.value = true
+
+  try {
+    await Promise.all([
+      refreshAccounts(),
+      refreshRules(),
+      refreshEvents()
+    ])
+    setNotice('表示内容を更新しました')
+  }
+  catch (error: any) {
+    setError(error?.data?.statusMessage || '表示内容の更新に失敗しました')
+  }
+  finally {
+    refreshing.value = false
+  }
 }
 
 function formatDate(value: string) {
@@ -263,448 +335,553 @@ function formatDate(value: string) {
 function getInstagramProfileUrl(senderUsername: string) {
   return `https://www.instagram.com/${encodeURIComponent(senderUsername.trim())}/`
 }
+
+function getChannelLabel(channel: EventChannel) {
+  return channel === 'COMMENT' ? 'コメント' : 'DM'
+}
+
+function getReplyStatusLabel(status?: ReplyStatus) {
+  switch (status) {
+    case 'SENT':
+      return '送信済み'
+    case 'FAILED':
+      return '失敗'
+    case 'SKIPPED':
+      return 'スキップ'
+    case 'STUBBED':
+      return 'テスト返信'
+    default:
+      return '未処理'
+  }
+}
+
+function getReplyStatusVariant(status?: ReplyStatus) {
+  switch (status) {
+    case 'SENT':
+      return 'default'
+    case 'FAILED':
+      return 'destructive'
+    case 'SKIPPED':
+      return 'secondary'
+    default:
+      return 'outline'
+  }
+}
+
+function updateRulePriority(value: string | number) {
+  const nextValue = Number(value)
+  ruleForm.priority = Number.isFinite(nextValue) ? nextValue : 0
+}
 </script>
 
 <template>
-  <main class="dashboard-page">
-    <header class="top-header">
-      <div>
-        <h1>Replia</h1>
-        <p>ログイン中: {{ meData?.user?.email }}（{{ isAdmin ? 'システム管理者' : '一般' }}）</p>
-      </div>
-      <div class="top-actions">
-        <NuxtLink v-if="isAdmin" class="secondary nav-link" to="/users">ユーザーマスター</NuxtLink>
-        <button class="logout" @click="logout">ログアウト</button>
-      </div>
-    </header>
-
-    <p v-if="notice" class="notice">{{ notice }}</p>
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-
-    <section class="card">
-      <h2>Instagram連携</h2>
-      <p class="section-note">アクセストークンの入力は不要です。Metaの認可画面で連携したいアカウントを許可してください。</p>
-      <a class="action link-button" :href="oauthConnectPath">Instagramと連携する</a>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>InstagramユーザーID</th>
-              <th>ユーザー名</th>
-              <th>状態</th>
-              <th>更新日時</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="account in accounts" :key="account.id">
-              <td>{{ account.platformUserId }}</td>
-              <td>{{ account.username }}</td>
-              <td>{{ account.enabled ? '有効' : '無効' }}</td>
-              <td>{{ formatDate(account.updatedAt) }}</td>
-              <td>
-                <div class="row-actions">
-                  <button class="mini" @click="toggleAccount(account)">{{ account.enabled ? '無効化' : '有効化' }}</button>
-                  <button class="mini danger" @click="disconnectAccount(account)">連携解除</button>
+  <main class="px-4 py-6 sm:px-6 sm:py-8">
+    <div class="mx-auto flex max-w-7xl flex-col gap-6">
+      <section class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+        <div class="flex flex-col gap-6 p-6 sm:p-8">
+          <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div class="space-y-4">
+              <AppBrandMark />
+              <div class="space-y-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Badge class="rounded-full px-3 py-1">
+                    {{ isAdmin ? 'システム管理者' : '一般ユーザー' }}
+                  </Badge>
+                  <Badge variant="secondary" class="rounded-full px-3 py-1">
+                    ログイン中: {{ meData?.user?.email }}
+                  </Badge>
                 </div>
-              </td>
-            </tr>
-            <tr v-if="accounts.length === 0">
-              <td colspan="5">連携アカウントはまだありません</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>返信ルール管理</h2>
-      <div class="grid two">
-        <label>
-          チャネル
-          <select v-model="ruleForm.channel">
-            <option value="DM">DM</option>
-            <option value="COMMENT">コメント</option>
-          </select>
-        </label>
-        <label>
-          優先度
-          <input v-model.number="ruleForm.priority" type="number" />
-        </label>
-      </div>
-
-      <label>
-        キーワード
-        <input v-model="ruleForm.keyword" type="text" placeholder="資料" />
-      </label>
-
-      <label>
-        返信内容
-        <textarea v-model="ruleForm.replyText" rows="3" placeholder="お問い合わせありがとうございます。"></textarea>
-      </label>
-
-      <label class="check">
-        <input v-model="ruleForm.isActive" type="checkbox" />
-        このルールを有効にする
-      </label>
-
-      <div class="actions">
-        <button class="action" :disabled="submitting" @click="saveRule">
-          {{ submitting ? '保存中...' : editingRuleId ? 'ルール更新' : 'ルール追加' }}
-        </button>
-        <button v-if="editingRuleId" class="secondary" @click="resetRuleForm">編集をキャンセル</button>
-      </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>チャネル</th>
-              <th>キーワード</th>
-              <th>返信内容</th>
-              <th>優先度</th>
-              <th>状態</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="rule in rules" :key="rule.id">
-              <td>{{ rule.channel }}</td>
-              <td>{{ rule.keyword }}</td>
-              <td>{{ rule.replyText }}</td>
-              <td>{{ rule.priority }}</td>
-              <td>{{ rule.isActive ? '有効' : '無効' }}</td>
-              <td>
-                <div class="row-actions">
-                  <button class="mini" @click="editRule(rule)">編集</button>
-                  <button class="mini" @click="toggleRule(rule)">{{ rule.isActive ? '無効化' : '有効化' }}</button>
-                  <button class="mini danger" @click="deleteRule(rule.id)">削除</button>
+                <div class="space-y-2">
+                  <h1 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                    Instagram 自動返信の運用状況を一画面で管理
+                  </h1>
+                  <p class="max-w-3xl text-sm leading-7 text-muted-foreground sm:text-base">
+                    連携アカウント、返信ルール、受信イベントの流れを shadcn ベースの UI に統一し、
+                    更新操作や確認導線を整理しました。
+                  </p>
                 </div>
-              </td>
-            </tr>
-            <tr v-if="rules.length === 0">
-              <td colspan="6">返信ルールはまだありません</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+              </div>
+            </div>
 
-    <section class="card">
-      <h2>受信イベントテスト（DM/コメント）</h2>
-      <div class="grid two">
-        <label>
-          チャネル
-          <select v-model="inboundForm.channel">
-            <option value="DM">DM</option>
-            <option value="COMMENT">コメント</option>
-          </select>
-        </label>
-        <label>
-          送信者ID
-          <input v-model="inboundForm.senderId" type="text" placeholder="user_001" />
-        </label>
-      </div>
-      <label>
-        送信者ユーザー名（任意）
-        <input v-model="inboundForm.senderUsername" type="text" placeholder="instagram_user" />
-      </label>
-      <label>
-        受信本文
-        <textarea v-model="inboundForm.content" rows="3" placeholder="資料をください"></textarea>
-      </label>
-      <button class="action" @click="simulateInboundEvent">テストイベントを送信</button>
-    </section>
+            <div class="flex flex-wrap gap-3">
+              <Button variant="outline" :disabled="refreshing" @click="refreshAll">
+                <RefreshCcw class="size-4" :class="{ 'animate-spin': refreshing }" />
+                再読み込み
+              </Button>
+              <Button v-if="isAdmin" as-child variant="outline">
+                <NuxtLink to="/users">
+                  <Users class="size-4" />
+                  ユーザーマスター
+                </NuxtLink>
+              </Button>
+              <Button variant="secondary" @click="logout">
+                <LogOut class="size-4" />
+                ログアウト
+              </Button>
+            </div>
+          </div>
 
-    <section class="card">
-      <div class="section-head">
-        <h2>受信イベントログ</h2>
-        <button class="secondary" @click="() => refreshEvents()">再読み込み</button>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>日時</th>
-              <th>チャネル</th>
-              <th>送信者</th>
-              <th>本文</th>
-              <th>返信ステータス</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="event in events" :key="event.id">
-              <td>{{ formatDate(event.createdAt) }}</td>
-              <td>{{ event.channel }}</td>
-              <td>
-                <div class="sender-cell">
-                  <a
-                    v-if="event.senderUsername"
-                    class="sender-link"
-                    :href="getInstagramProfileUrl(event.senderUsername)"
-                    target="_blank"
-                    rel="noopener noreferrer"
+          <div class="grid gap-4 md:grid-cols-3">
+            <div
+              v-for="metric in metrics"
+              :key="metric.title"
+              class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <div class="space-y-2">
+                  <p class="text-sm font-medium text-muted-foreground">
+                    {{ metric.title }}
+                  </p>
+                  <p class="text-3xl font-bold tracking-tight text-foreground">
+                    {{ metric.value }}
+                  </p>
+                </div>
+                <div :class="['flex size-11 items-center justify-center rounded-2xl', metric.iconClass]">
+                  <component :is="metric.icon" class="size-5" />
+                </div>
+              </div>
+              <p class="mt-4 text-sm leading-6 text-muted-foreground">
+                {{ metric.subtext }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Alert v-if="notice">
+        <CheckCircle2 class="size-4" />
+        <AlertTitle>操作が完了しました</AlertTitle>
+        <AlertDescription>{{ notice }}</AlertDescription>
+      </Alert>
+
+      <Alert v-if="errorMessage" variant="destructive">
+        <CircleAlert class="size-4" />
+        <AlertTitle>処理に失敗しました</AlertTitle>
+        <AlertDescription>{{ errorMessage }}</AlertDescription>
+      </Alert>
+
+      <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div class="space-y-6">
+          <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+            <CardHeader class="gap-4">
+              <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="space-y-2">
+                  <CardTitle class="flex items-center gap-2 text-2xl">
+                    <Instagram class="size-5 text-primary" />
+                    Instagram連携
+                  </CardTitle>
+                  <CardDescription class="leading-6">
+                    Meta の認可画面で連携したいアカウントを許可してください。アクセストークンの手入力は不要です。
+                  </CardDescription>
+                </div>
+                <Button as="a" :href="oauthConnectPath">
+                  <Link2 class="size-4" />
+                  Instagramと連携する
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent class="space-y-4">
+              <div v-if="accounts.length" class="grid gap-4 md:grid-cols-2">
+                <div
+                  v-for="account in accounts"
+                  :key="account.id"
+                  class="rounded-[1.5rem] border border-border/70 bg-muted/30 p-5"
+                >
+                  <div class="flex items-start justify-between gap-4">
+                    <div class="space-y-2">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-lg font-semibold text-foreground">
+                          @{{ account.username }}
+                        </p>
+                        <Badge :variant="account.enabled ? 'default' : 'secondary'">
+                          {{ account.enabled ? '有効' : '停止中' }}
+                        </Badge>
+                      </div>
+                      <p class="text-sm text-muted-foreground">
+                        InstagramユーザーID: {{ account.platformUserId }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        更新日時: {{ formatDate(account.updatedAt) }}
+                      </p>
+                    </div>
+                    <div class="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Instagram class="size-5" />
+                    </div>
+                  </div>
+
+                  <div class="mt-5 flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" @click="toggleAccount(account)">
+                      {{ account.enabled ? '無効化' : '有効化' }}
+                    </Button>
+                    <Button size="sm" variant="destructive" @click="disconnectAccount(account)">
+                      連携解除
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-else
+                class="rounded-[1.5rem] border border-dashed border-border/80 bg-muted/20 px-6 py-10 text-center text-sm leading-6 text-muted-foreground"
+              >
+                連携アカウントはまだありません。まずは Meta 認証からアカウントを接続してください。
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+            <CardHeader class="gap-4">
+              <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2">
+                    <CardTitle class="text-2xl">
+                      返信ルール管理
+                    </CardTitle>
+                    <Badge v-if="editingRuleId" variant="secondary">
+                      編集中
+                    </Badge>
+                  </div>
+                  <CardDescription class="leading-6">
+                    キーワード、優先度、チャネルを整理して、自動返信の条件を明確に保ちます。
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" class="w-fit">
+                  有効ルール {{ activeRulesCount }}件
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <CardContent class="space-y-6">
+              <form class="space-y-5" @submit.prevent="saveRule">
+                <div class="grid gap-4 sm:grid-cols-[180px_140px]">
+                  <div class="space-y-2">
+                    <Label for="rule-channel">チャネル</Label>
+                    <Select v-model="ruleForm.channel">
+                      <SelectTrigger id="rule-channel">
+                        <SelectValue placeholder="チャネルを選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DM">
+                          DM
+                        </SelectItem>
+                        <SelectItem value="COMMENT">
+                          コメント
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div class="space-y-2">
+                    <Label for="rule-priority">優先度</Label>
+                    <Input
+                      id="rule-priority"
+                      type="number"
+                      :model-value="String(ruleForm.priority)"
+                      @update:model-value="updateRulePriority"
+                    />
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <Label for="rule-keyword">キーワード</Label>
+                  <Input
+                    id="rule-keyword"
+                    v-model="ruleForm.keyword"
+                    type="text"
+                    placeholder="資料"
+                    required
+                  />
+                </div>
+
+                <div class="space-y-2">
+                  <Label for="rule-reply">返信内容</Label>
+                  <Textarea
+                    id="rule-reply"
+                    v-model="ruleForm.replyText"
+                    rows="4"
+                    placeholder="お問い合わせありがとうございます。"
+                    required
+                  />
+                </div>
+
+                <div class="flex flex-col gap-4 rounded-[1.5rem] border border-border/70 bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="space-y-1">
+                    <p class="font-medium text-foreground">
+                      このルールを有効にする
+                    </p>
+                    <p class="text-sm text-muted-foreground">
+                      無効にするとマッチ条件に残したまま返信対象から外れます。
+                    </p>
+                  </div>
+                  <Switch v-model:checked="ruleForm.isActive" aria-label="ルールの有効化切替" />
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                  <Button type="submit" :disabled="savingRule">
+                    <LoaderCircle v-if="savingRule" class="size-4 animate-spin" />
+                    {{ savingRule ? '保存中...' : editingRuleId ? 'ルール更新' : 'ルール追加' }}
+                  </Button>
+                  <Button
+                    v-if="editingRuleId"
+                    type="button"
+                    variant="outline"
+                    @click="resetRuleForm"
                   >
-                    @{{ event.senderUsername }}
-                  </a>
-                  <span v-else class="sender-name sender-name-muted">ユーザー名未取得</span>
-                  <span class="sender-id">ID: {{ event.senderId }}</span>
-                  <span v-if="event.isSelfEvent" class="self-badge">自分</span>
+                    編集をキャンセル
+                  </Button>
                 </div>
-              </td>
-              <td>{{ event.content }}</td>
-              <td>
-                <span v-if="event.outboundReplies[0]">
-                  {{ event.outboundReplies[0].status }}
-                </span>
-                <span v-else>未処理</span>
-              </td>
-            </tr>
-            <tr v-if="events.length === 0">
-              <td colspan="5">イベントはまだありません</td>
-            </tr>
-          </tbody>
-        </table>
+              </form>
+
+              <Separator />
+
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <p class="font-semibold text-foreground">
+                      登録済みルール
+                    </p>
+                    <p class="text-sm text-muted-foreground">
+                      優先度の高い順に表示しています。
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" @click="refreshRules">
+                    <RefreshCcw class="size-4" />
+                    更新
+                  </Button>
+                </div>
+
+                <div class="overflow-hidden rounded-[1.5rem] border border-border/70">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>チャネル</TableHead>
+                        <TableHead>キーワード</TableHead>
+                        <TableHead>返信内容</TableHead>
+                        <TableHead class="w-24">優先度</TableHead>
+                        <TableHead class="w-28">状態</TableHead>
+                        <TableHead class="w-[220px]">操作</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="rule in rules" :key="rule.id">
+                        <TableCell class="align-top">
+                          <Badge variant="outline">
+                            {{ getChannelLabel(rule.channel) }}
+                          </Badge>
+                        </TableCell>
+                        <TableCell class="align-top font-medium">
+                          {{ rule.keyword }}
+                        </TableCell>
+                        <TableCell class="max-w-xl whitespace-pre-wrap align-top text-sm leading-6 text-muted-foreground">
+                          {{ rule.replyText }}
+                        </TableCell>
+                        <TableCell class="align-top">
+                          {{ rule.priority }}
+                        </TableCell>
+                        <TableCell class="align-top">
+                          <Badge :variant="rule.isActive ? 'default' : 'secondary'">
+                            {{ rule.isActive ? '有効' : '無効' }}
+                          </Badge>
+                        </TableCell>
+                        <TableCell class="align-top">
+                          <div class="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" @click="editRule(rule)">
+                              編集
+                            </Button>
+                            <Button size="sm" variant="secondary" @click="toggleRule(rule)">
+                              {{ rule.isActive ? '無効化' : '有効化' }}
+                            </Button>
+                            <Button size="sm" variant="destructive" @click="deleteRule(rule.id)">
+                              削除
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      <TableEmpty v-if="rules.length === 0" :colspan="6">
+                        返信ルールはまだありません
+                      </TableEmpty>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div class="space-y-6">
+          <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+            <CardHeader class="gap-3">
+              <CardTitle class="flex items-center gap-2 text-2xl">
+                <Send class="size-5 text-primary" />
+                受信イベントテスト
+              </CardTitle>
+              <CardDescription class="leading-6">
+                DM / コメントの受信を模擬して、自動返信処理とログ登録をまとめて確認できます。
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form class="space-y-5" @submit.prevent="simulateInboundEvent">
+                <div class="grid gap-4 sm:grid-cols-[180px_1fr]">
+                  <div class="space-y-2">
+                    <Label for="inbound-channel">チャネル</Label>
+                    <Select v-model="inboundForm.channel">
+                      <SelectTrigger id="inbound-channel">
+                        <SelectValue placeholder="チャネルを選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DM">
+                          DM
+                        </SelectItem>
+                        <SelectItem value="COMMENT">
+                          コメント
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div class="space-y-2">
+                    <Label for="inbound-sender-id">送信者ID</Label>
+                    <Input
+                      id="inbound-sender-id"
+                      v-model="inboundForm.senderId"
+                      type="text"
+                      placeholder="user_001"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <Label for="inbound-sender-username">送信者ユーザー名（任意）</Label>
+                  <Input
+                    id="inbound-sender-username"
+                    v-model="inboundForm.senderUsername"
+                    type="text"
+                    placeholder="instagram_user"
+                  />
+                </div>
+
+                <div class="space-y-2">
+                  <Label for="inbound-content">受信本文</Label>
+                  <Textarea
+                    id="inbound-content"
+                    v-model="inboundForm.content"
+                    rows="4"
+                    placeholder="資料をください"
+                    required
+                  />
+                </div>
+
+                <Button class="w-full" type="submit" :disabled="sendingTestEvent">
+                  <LoaderCircle v-if="sendingTestEvent" class="size-4 animate-spin" />
+                  {{ sendingTestEvent ? '送信中...' : 'テストイベントを送信' }}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+            <CardHeader class="gap-4">
+              <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="space-y-2">
+                  <CardTitle class="flex items-center gap-2 text-2xl">
+                    <ShieldCheck class="size-5 text-primary" />
+                    受信イベントログ
+                  </CardTitle>
+                  <CardDescription class="leading-6">
+                    最新100件の受信イベントと直近返信結果を確認できます。
+                  </CardDescription>
+                </div>
+                <Button size="sm" variant="outline" @click="refreshEvents">
+                  <RefreshCcw class="size-4" />
+                  更新
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent class="space-y-4">
+              <article
+                v-for="event in events"
+                :key="event.id"
+                class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">
+                    {{ getChannelLabel(event.channel) }}
+                  </Badge>
+                  <Badge :variant="getReplyStatusVariant(event.outboundReplies[0]?.status)">
+                    {{ getReplyStatusLabel(event.outboundReplies[0]?.status) }}
+                  </Badge>
+                  <span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock3 class="size-3.5" />
+                    {{ formatDate(event.createdAt) }}
+                  </span>
+                  <Badge v-if="event.isSelfEvent" variant="secondary">
+                    自分のアカウント
+                  </Badge>
+                </div>
+
+                <div class="mt-4 space-y-3">
+                  <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <span class="font-semibold text-foreground">
+                      {{ event.senderUsername ? `@${event.senderUsername}` : 'ユーザー名未取得' }}
+                    </span>
+                    <span class="text-muted-foreground">
+                      ID: {{ event.senderId }}
+                    </span>
+                    <a
+                      v-if="event.senderUsername"
+                      :href="getInstagramProfileUrl(event.senderUsername)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex items-center gap-1 font-medium text-primary hover:text-primary/80"
+                    >
+                      プロフィール
+                      <ExternalLink class="size-3.5" />
+                    </a>
+                  </div>
+
+                  <div class="rounded-2xl bg-white/85 px-4 py-3 shadow-sm">
+                    <p class="whitespace-pre-wrap text-sm leading-6 text-foreground">
+                      {{ event.content }}
+                    </p>
+                  </div>
+
+                  <div
+                    v-if="event.outboundReplies[0]?.replyText"
+                    class="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm leading-6 text-muted-foreground"
+                  >
+                    <p class="font-medium text-foreground">
+                      返信内容
+                    </p>
+                    <p class="mt-1 whitespace-pre-wrap">
+                      {{ event.outboundReplies[0].replyText }}
+                    </p>
+                  </div>
+
+                  <div
+                    v-if="event.outboundReplies[0]?.errorMessage"
+                    class="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm leading-6 text-destructive"
+                  >
+                    <p class="font-medium">
+                      エラー詳細
+                    </p>
+                    <p class="mt-1 whitespace-pre-wrap">
+                      {{ event.outboundReplies[0].errorMessage }}
+                    </p>
+                  </div>
+                </div>
+              </article>
+
+              <div
+                v-if="events.length === 0"
+                class="rounded-[1.5rem] border border-dashed border-border/80 bg-muted/20 px-6 py-10 text-center text-sm leading-6 text-muted-foreground"
+              >
+                イベントはまだありません。テストイベント送信または Instagram 連携後の受信を待ってください。
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </section>
+    </div>
   </main>
 </template>
-
-<style scoped>
-.dashboard-page {
-  min-height: 100vh;
-  padding: 18px;
-  background: linear-gradient(180deg, #f7fbff 0%, #eaf4f8 100%);
-  font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
-  color: #18303d;
-}
-
-.top-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.top-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-h1 {
-  margin: 0;
-  font-size: 24px;
-}
-
-h2 {
-  margin: 0 0 12px;
-  font-size: 20px;
-}
-
-p {
-  margin: 4px 0;
-}
-
-.notice {
-  background: #def7eb;
-  border: 1px solid #87c9a8;
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.error {
-  background: #ffe7e4;
-  border: 1px solid #e79a91;
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.card {
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 10px 30px rgba(14, 44, 61, 0.08);
-  margin-bottom: 16px;
-}
-
-.section-note {
-  margin-bottom: 10px;
-}
-
-.grid {
-  display: grid;
-  gap: 10px;
-}
-
-.grid.two {
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-}
-
-label {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 10px;
-  font-weight: 600;
-}
-
-input,
-select,
-textarea {
-  border: 1px solid #90aeb8;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 14px;
-}
-
-.check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.check input {
-  width: 16px;
-  height: 16px;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
-.action,
-.secondary,
-.logout,
-.mini {
-  border: none;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.action {
-  background: #0c7d5f;
-  color: #fff;
-}
-
-.link-button {
-  display: inline-block;
-  text-decoration: none;
-}
-
-.secondary {
-  background: #d6e5eb;
-  color: #1f3f4f;
-}
-
-.nav-link {
-  text-decoration: none;
-  display: inline-block;
-}
-
-.logout {
-  background: #3c6273;
-  color: #fff;
-}
-
-.row-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.sender-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sender-link {
-  color: #0b5b9d;
-  text-decoration: underline;
-  font-weight: 700;
-}
-
-.sender-link:hover {
-  text-decoration: none;
-}
-
-.sender-name {
-  color: #446273;
-  font-size: 13px;
-}
-
-.sender-name-muted {
-  color: #6f8794;
-}
-
-.sender-id {
-  color: #527182;
-  font-size: 12px;
-}
-
-.self-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background: #d9f3e8;
-  color: #1b6f4f;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.mini {
-  padding: 6px 10px;
-  background: #dbe7ed;
-  color: #13394b;
-}
-
-.mini.danger {
-  background: #f6d6d1;
-  color: #7b1f13;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  border-bottom: 1px solid #dbe7ed;
-  text-align: left;
-  padding: 10px 8px;
-  vertical-align: top;
-  font-size: 14px;
-}
-
-.section-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-@media (max-width: 768px) {
-  .dashboard-page {
-    padding: 12px;
-  }
-
-  .top-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .row-actions {
-    flex-wrap: wrap;
-  }
-}
-</style>
