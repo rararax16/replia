@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, Instagram, LayoutDashboard, LogOut, MessageSquareText, Users } from 'lucide-vue-next'
+import { Activity, CircleUserRound, Instagram, LayoutDashboard, LogOut, MessageSquareText, Users } from 'lucide-vue-next'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<{
@@ -33,6 +33,11 @@ const navItems = computed(() => {
       label: '受信イベント',
       to: '/events',
       icon: Activity
+    },
+    {
+      label: 'マイページ',
+      to: '/my-page',
+      icon: CircleUserRound
     }
   ]
 
