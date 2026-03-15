@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'guest'
+})
+
 useHead({
   title: 'ログイン | Replia'
 })
@@ -7,12 +11,6 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
-
-const { data: meData } = await useFetch('/api/auth/me')
-
-if (meData.value?.authenticated) {
-  await navigateTo('/dashboard')
-}
 
 async function submit() {
   loading.value = true
@@ -27,6 +25,7 @@ async function submit() {
       }
     })
 
+    await ensureAuthState(true)
     await navigateTo('/dashboard')
   }
   catch (error: any) {

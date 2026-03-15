@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { EventChannel } from '@prisma/client'
 
+definePageMeta({
+  middleware: 'auth'
+})
+
 useHead({
   title: 'ダッシュボード | Replia'
 })
@@ -45,18 +49,14 @@ const oauthConnectPath = '/api/ig-accounts/oauth/start'
 const notice = ref('')
 const errorMessage = ref('')
 const submitting = ref(false)
-
-const { data: meData } = await useFetch('/api/auth/me')
-
-if (!meData.value?.authenticated) {
-  await navigateTo('/login')
-}
+const authState = useAuthStateRef()
+const meData = computed(() => authState.value)
 
 const isAdmin = computed(() => meData.value?.user?.role === 'ADMIN')
 
-const { data: rulesData, refresh: refreshRules } = await useFetch('/api/reply-rules')
-const { data: eventsData, refresh: refreshEvents } = await useFetch('/api/inbound-events')
-const { data: accountsData, refresh: refreshAccounts } = await useFetch('/api/ig-accounts')
+const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
+const { data: eventsData, refresh: refreshEvents } = useFetch('/api/inbound-events')
+const { data: accountsData, refresh: refreshAccounts } = useFetch('/api/ig-accounts')
 
 const rules = computed<ReplyRule[]>(() => rulesData.value?.rules || [])
 const events = computed<InboundEvent[]>(() => eventsData.value?.events || [])
@@ -128,6 +128,7 @@ onMounted(async () => {
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
+  clearAuthState()
   await navigateTo('/login')
 }
 

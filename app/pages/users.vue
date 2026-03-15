@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'admin'
+})
+
 useHead({
   title: 'ユーザーマスター | Replia'
 })
@@ -17,18 +21,7 @@ const notice = ref('')
 const errorMessage = ref('')
 const submitting = ref(false)
 const editingUserId = ref<string | null>(null)
-
-const { data: meData } = await useFetch('/api/auth/me')
-
-if (!meData.value?.authenticated) {
-  await navigateTo('/login')
-}
-
-if (meData.value?.user?.role !== 'ADMIN') {
-  await navigateTo('/dashboard')
-}
-
-const { data: usersData, refresh: refreshUsers } = await useFetch('/api/users')
+const { data: usersData, refresh: refreshUsers } = useFetch('/api/users')
 const users = computed<UserRow[]>(() => usersData.value?.users || [])
 
 const form = reactive<{

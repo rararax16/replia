@@ -1,12 +1,7 @@
 <script setup lang="ts">
-const { data } = await useFetch('/api/auth/me')
-
-if (data.value?.authenticated) {
-  await navigateTo('/dashboard')
-}
-else {
-  await navigateTo('/login')
-}
+definePageMeta({
+  middleware: 'root-redirect'
+})
 </script>
 
 <template>
