@@ -54,6 +54,7 @@ function isNavItemActive(path: string) {
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   clearAuthState()
+  clearSessionScopedData()
   await navigateTo('/login')
 }
 </script>

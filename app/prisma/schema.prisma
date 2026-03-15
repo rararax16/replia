@@ -40,14 +40,18 @@ model Tenant {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String   @map("tenant_id")
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         UserRole @default(MEMBER)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id              String          @id @default(cuid())
+  tenantId        String          @map("tenant_id")
+  email           String          @unique
+  passwordHash    String          @map("password_hash")
+  role            UserRole        @default(MEMBER)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  igAccounts      IgAccount[]
+  replyRules      ReplyRule[]
+  inboundEvents   InboundEvent[]
+  outboundReplies OutboundReply[]
 
   @@index([tenantId])
   @@map("users")
@@ -56,6 +60,7 @@ model User {
 model IgAccount {
   id                   String   @id @default(cuid())
   tenantId             String   @map("tenant_id")
+  userId               String   @map("user_id")
   platformUserId       String   @map("platform_user_id")
   username             String
   accessTokenEncrypted String   @map("access_token_encrypted")
@@ -63,15 +68,17 @@ model IgAccount {
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
   tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, platformUserId])
-  @@index([tenantId])
+  @@index([tenantId, userId])
   @@map("ig_accounts")
 }
 
 model ReplyRule {
   id        String       @id @default(cuid())
   tenantId  String       @map("tenant_id")
+  userId    String       @map("user_id")
   channel   EventChannel
   keyword   String
   replyText String       @map("reply_text") @db.Text
@@ -80,14 +87,16 @@ model ReplyRule {
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
   tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, channel, isActive, priority])
+  @@index([tenantId, userId, channel, isActive, priority])
   @@map("reply_rules")
 }
 
 model InboundEvent {
   id              String         @id @default(cuid())
   tenantId        String         @map("tenant_id")
+  userId          String         @map("user_id")
   channel         EventChannel
   externalEventId String         @map("external_event_id")
   senderId        String         @map("sender_id")
@@ -96,24 +105,27 @@ model InboundEvent {
   matchedRuleId   String?        @map("matched_rule_id")
   createdAt       DateTime       @default(now()) @map("created_at")
   tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   outboundReplies OutboundReply[]
 
-  @@unique([tenantId, externalEventId])
-  @@index([tenantId, channel, createdAt])
+  @@unique([tenantId, userId, externalEventId])
+  @@index([tenantId, userId, channel, createdAt])
   @@map("inbound_events")
 }
 
 model OutboundReply {
-  id           String       @id @default(cuid())
-  tenantId     String       @map("tenant_id")
-  inboundEventId String?    @map("inbound_event_id")
-  replyText    String       @map("reply_text") @db.Text
-  status       ReplyStatus  @default(STUBBED)
-  errorMessage String?      @map("error_message") @db.Text
-  createdAt    DateTime     @default(now()) @map("created_at")
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  inboundEvent InboundEvent? @relation(fields: [inboundEventId], references: [id], onDelete: SetNull)
+  id            String        @id @default(cuid())
+  tenantId      String        @map("tenant_id")
+  userId        String        @map("user_id")
+  inboundEventId String?      @map("inbound_event_id")
+  replyText     String        @map("reply_text") @db.Text
+  status        ReplyStatus   @default(STUBBED)
+  errorMessage  String?       @map("error_message") @db.Text
+  createdAt     DateTime      @default(now()) @map("created_at")
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inboundEvent  InboundEvent? @relation(fields: [inboundEventId], references: [id], onDelete: SetNull)
 
-  @@index([tenantId, status, createdAt])
+  @@index([tenantId, userId, status, createdAt])
   @@map("outbound_replies")
 }

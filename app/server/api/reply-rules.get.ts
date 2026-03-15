@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
   const rules = await prisma.replyRule.findMany({
     where: {
       tenantId: user.tenantId,
+      userId: user.id,
       channel
     },
     orderBy: [

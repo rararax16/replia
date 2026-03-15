@@ -15,7 +15,8 @@ export default defineEventHandler(async (event) => {
 
   const accounts = await prisma.igAccount.findMany({
     where: {
-      tenantId: user.tenantId
+      tenantId: user.tenantId,
+      userId: user.id
     },
     select: {
       platformUserId: true
@@ -28,6 +29,7 @@ export default defineEventHandler(async (event) => {
   const events = await prisma.inboundEvent.findMany({
     where: {
       tenantId: user.tenantId,
+      userId: user.id,
       ...(ownSenderIds.length > 0
         ? {
             senderId: {

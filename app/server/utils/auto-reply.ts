@@ -4,6 +4,7 @@ import { sendInstagramReply } from '../services/instagram.service'
 
 export type ProcessInboundEventInput = {
   tenantId: string
+  userId: string
   inboundEventId: string
   channel: EventChannel
   senderId: string
@@ -18,6 +19,7 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
   const rules = await prisma.replyRule.findMany({
     where: {
       tenantId: input.tenantId,
+      userId: input.userId,
       channel: input.channel,
       isActive: true
     },
@@ -36,6 +38,7 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
     return prisma.outboundReply.create({
       data: {
         tenantId: input.tenantId,
+        userId: input.userId,
         inboundEventId: input.inboundEventId,
         replyText: '',
         status: ReplyStatus.SKIPPED,
@@ -55,6 +58,7 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
   const account = await prisma.igAccount.findFirst({
     where: {
       tenantId: input.tenantId,
+      userId: input.userId,
       enabled: true
     },
     orderBy: {
@@ -66,6 +70,7 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
     return prisma.outboundReply.create({
       data: {
         tenantId: input.tenantId,
+        userId: input.userId,
         inboundEventId: input.inboundEventId,
         replyText: matchedRule.replyText,
         status: ReplyStatus.FAILED,
@@ -76,6 +81,7 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
 
   const sendResult = await sendInstagramReply({
     tenantId: input.tenantId,
+    userId: input.userId,
     platformUserId: account.platformUserId,
     recipientId: input.senderId,
     text: matchedRule.replyText,
@@ -90,6 +96,7 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
   return prisma.outboundReply.create({
     data: {
       tenantId: input.tenantId,
+      userId: input.userId,
       inboundEventId: input.inboundEventId,
       replyText: matchedRule.replyText,
       status: replyStatus,

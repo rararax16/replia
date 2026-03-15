@@ -42,3 +42,7 @@ export function clearAuthState() {
   const authState = useAuthStateRef()
   authState.value = null
 }
+
+export function clearSessionScopedData() {
+  clearNuxtData()
+}

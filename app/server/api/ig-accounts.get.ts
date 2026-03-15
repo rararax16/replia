@@ -6,7 +6,8 @@ export default defineEventHandler(async (event) => {
 
   const accounts = await prisma.igAccount.findMany({
     where: {
-      tenantId: user.tenantId
+      tenantId: user.tenantId,
+      userId: user.id
     },
     orderBy: {
       updatedAt: 'desc'

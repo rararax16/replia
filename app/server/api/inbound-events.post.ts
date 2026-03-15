@@ -42,6 +42,7 @@ export default defineEventHandler(async (event) => {
 
   const inboundEventData: Record<string, unknown> = {
     tenantId: user.tenantId,
+    userId: user.id,
     channel,
     externalEventId: body.externalEventId?.trim() || randomUUID(),
     senderId,
@@ -58,6 +59,7 @@ export default defineEventHandler(async (event) => {
 
   const outboundReply = await processInboundEvent({
     tenantId: user.tenantId,
+    userId: user.id,
     inboundEventId: inboundEvent.id,
     channel,
     senderId,
