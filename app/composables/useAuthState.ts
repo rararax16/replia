@@ -2,7 +2,6 @@ export type AuthUserRole = 'ADMIN' | 'MEMBER'
 
 export type AuthUser = {
   id: string
-  tenantId: string
   email: string
   role: AuthUserRole
 }

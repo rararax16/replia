@@ -8,6 +8,7 @@ type UpdateUserBody = {
   email?: string
   password?: string
   role?: string
+  enabled?: boolean
 }
 
 function parseRole(value: string | undefined): UserRole | undefined {
@@ -44,8 +45,9 @@ export default defineEventHandler(async (event) => {
   const email = body.email?.trim().toLowerCase()
   const password = body.password?.trim()
   const role = parseRole(body.role?.trim().toUpperCase())
+  const enabled = typeof body.enabled === 'boolean' ? body.enabled : undefined
 
-  if (!email && !password && !role) {
+  if (!email && !password && !role && enabled === undefined) {
     throw createError({
       statusCode: 400,
       message: '更新内容が指定されていません'
@@ -98,10 +100,18 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (enabled === false && id === adminUser.id) {
+    throw createError({
+      statusCode: 400,
+      message: '自身のアカウントを無効化することはできません'
+    })
+  }
+
   const data: {
     email?: string
     passwordHash?: string
     role?: UserRole
+    enabled?: boolean
   } = {}
 
   if (email) {
@@ -114,6 +124,10 @@ export default defineEventHandler(async (event) => {
 
   if (role) {
     data.role = role
+  }
+
+  if (enabled !== undefined) {
+    data.enabled = enabled
   }
 
   try {

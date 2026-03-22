@@ -3,7 +3,6 @@ import { hashPassword } from '../../utils/password'
 import { setSessionCookie } from '../../utils/session'
 
 type RegisterBody = {
-  tenantName?: string
   email?: string
   password?: string
 }
@@ -19,7 +18,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<RegisterBody>(event)
-  const tenantName = body.tenantName?.trim() || '初期テナント'
   const email = body.email?.trim().toLowerCase() || ''
   const password = body.password?.trim() || ''
 
@@ -37,32 +35,21 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const user = await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({
-      data: {
-        name: tenantName
-      }
-    })
-
-    return tx.user.create({
-      data: {
-        tenantId: tenant.id,
-        email,
-        passwordHash: hashPassword(password),
-        role: 'ADMIN'
-      },
-      select: {
-        id: true,
-        tenantId: true,
-        email: true,
-        role: true
-      }
-    })
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: hashPassword(password),
+      role: 'ADMIN'
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true
+    }
   })
 
   setSessionCookie(event, {
     userId: user.id,
-    tenantId: user.tenantId,
     email: user.email
   })
 

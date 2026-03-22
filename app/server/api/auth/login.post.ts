@@ -20,10 +20,10 @@ export default defineEventHandler(async (event) => {
     where: { email },
     select: {
       id: true,
-      tenantId: true,
       email: true,
       role: true,
-      passwordHash: true
+      passwordHash: true,
+      enabled: true
     }
   })
 
@@ -31,9 +31,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'メールアドレスまたはパスワードが正しくありません' })
   }
 
+  if (!user.enabled) {
+    throw createError({ statusCode: 403, statusMessage: 'このアカウントは無効化されています。管理者にお問い合わせください。' })
+  }
+
   setSessionCookie(event, {
     userId: user.id,
-    tenantId: user.tenantId,
     email: user.email
   })
 
@@ -41,7 +44,6 @@ export default defineEventHandler(async (event) => {
     message: 'ログインしました',
     user: {
       id: user.id,
-      tenantId: user.tenantId,
       email: user.email,
       role: user.role
     }

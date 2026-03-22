@@ -36,7 +36,6 @@ export default defineEventHandler(async (event) => {
   const existing = await prisma.replyRule.findFirst({
     where: {
       id,
-      tenantId: user.tenantId,
       userId: user.id
     }
   })

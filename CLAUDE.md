@@ -60,12 +60,12 @@ Nuxt 3 モノリス: `app/` ディレクトリにVueフロントエンド（page
 - **サーバールート**: Nitro規約に従い `app/server/api/<resource>/<action>.<method>.ts`
 - **認証**: セッションクッキー方式。HMAC-SHA256署名（`SESSION_SECRET`使用）。保護されたルートでは `requireAuth(event)` または `requireAdmin(event)` を呼ぶ。
 - **Instagramアクセストークン**: AES-256-GCMで暗号化して保存（`TOKEN_ENCRYPTION_KEY`使用）。
-- **マルチテナント**: すべてのリソースはTenantに属する。DBクエリは必ず `tenantId` でスコープする。
+- **スコープ**: すべてのリソースはUserに属する。DBクエリは必ず `userId` でスコープする。
 - **APIレスポンス**: `{ message: string, data: T }` 形式。エラーはh3の `createError()` を使用。
 
 ### データモデル（Prisma）
 
-主要モデル: `Tenant` → `User`（ロール: ADMIN|MEMBER）→ `IgAccount`、`ReplyRule`、`InboundEvent`、`OutboundReply`
+主要モデル: `User`（ロール: ADMIN|MEMBER）→ `IgAccount`、`ReplyRule`、`InboundEvent`、`OutboundReply`
 
 - `ReplyRule`: チャンネル（DM|COMMENT）ごとのキーワードマッチルール。優先度順で評価。
 - `InboundEvent`: Meta Webhookからの受信DM/コメント。マッチしたルールと送信者情報を保存。
@@ -99,6 +99,7 @@ META_API_VERSION=v24.0          # 省略可。デフォルトはv24.0
 - Vueコンポーネント: PascalCaseのファイル名
 - APIルートファイル: kebab-case（例: `reply-rules.post.ts`）
 - **UI文言・APIメッセージ・エラーメッセージはすべて日本語** — i18nライブラリは使用せず、日本語文字列をハードコード
+- **UIコンポーネントは `shadcn-nuxt`（shadcn/ui の Vue 移植）を使用** — ボタン・フォーム・カード等の汎用UIは `app/components/ui/` 配下の既存コンポーネントを優先して使う。新規コンポーネントが必要な場合も同ディレクトリのスタイルに合わせる
 
 ## コミット規約
 

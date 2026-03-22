@@ -47,12 +47,11 @@ export default defineEventHandler(async (event) => {
       id: statePayload.userId
     },
     select: {
-      id: true,
-      tenantId: true
+      id: true
     }
   })
 
-  if (!user || user.tenantId !== statePayload.tenantId) {
+  if (!user) {
     return redirectWithError(event, 'ユーザー情報の確認に失敗しました')
   }
 
@@ -69,23 +68,15 @@ export default defineEventHandler(async (event) => {
       for (const account of accounts) {
         const existing = await tx.igAccount.findUnique({
           where: {
-            tenantId_platformUserId: {
-              tenantId: user.tenantId,
+            userId_platformUserId: {
+              userId: user.id,
               platformUserId: account.instagramUserId
             }
           },
           select: {
-            id: true,
-            userId: true
+            id: true
           }
         })
-
-        if (existing && existing.userId !== user.id) {
-          throw createError({
-            statusCode: 409,
-            statusMessage: `@${account.instagramUsername} は別ユーザーに連携されています`
-          })
-        }
 
         if (existing) {
           await tx.igAccount.update({
@@ -103,7 +94,6 @@ export default defineEventHandler(async (event) => {
 
         await tx.igAccount.create({
           data: {
-            tenantId: user.tenantId,
             userId: user.id,
             platformUserId: account.instagramUserId,
             username: account.instagramUsername,
