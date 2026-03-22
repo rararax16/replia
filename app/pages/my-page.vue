@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleAlert, KeyRound, LoaderCircle, LockKeyhole, ShieldCheck } from 'lucide-vue-next'
+import { CheckCircle2, CircleAlert, KeyRound, LoaderCircle, LockKeyhole, ShieldCheck, Zap } from 'lucide-vue-next'
 
 definePageMeta({
   middleware: 'auth'
@@ -12,6 +12,33 @@ useHead({
 const authState = await ensureAuthState()
 const meData = computed(() => authState.value)
 const roleLabel = computed(() => meData.value?.user?.role === 'ADMIN' ? 'システム管理者' : '一般ユーザー')
+
+type BillingInfo = {
+  plan: 'FREE' | 'PRO'
+  replyLimit: number
+  replyUsedThisMonth: number
+}
+
+const { data: billingData } = useFetch('/api/billing')
+const billing = computed<BillingInfo>(() => billingData.value as BillingInfo ?? { plan: 'FREE', replyLimit: 30, replyUsedThisMonth: 0 })
+const dmUsagePercent = computed(() => Math.min(100, Math.round((billing.value.replyUsedThisMonth / billing.value.replyLimit) * 100)))
+
+const freeFeatures = [
+  'Instagramアカウント 1件',
+  'キーワード返信ルール 2件まで設定可',
+  '月20件まで自動返信（DM・コメント合計）',
+  'コメント → DM自動送信'
+]
+
+const proFeatures = [
+  'Instagramアカウント 1件',
+  'キーワード返信 無制限',
+  '月3,000件まで自動返信（DM・コメント合計）',
+  'コメント → DM自動送信',
+  'コメントユーザー一覧',
+  'タグ管理（簡易CRM）',
+  '優先サポート'
+]
 
 const notice = ref('')
 const errorMessage = ref('')
@@ -71,7 +98,7 @@ async function updatePassword() {
 <template>
   <AppAuthenticatedShell
     title="マイページ"
-    description="ログイン中のアカウント情報の確認と、自分のパスワード変更を行います。"
+    description="アカウント情報の確認・パスワード変更・プランの確認を行います。"
   >
     <template #badges>
       <Badge variant="secondary" class="rounded-full px-3 py-1">
@@ -100,10 +127,10 @@ async function updatePassword() {
 
       <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
         <p class="text-sm font-medium text-muted-foreground">
-          セキュリティ
+          ご利用中のプラン
         </p>
-        <p class="mt-2 text-base font-medium text-foreground">
-          新しいパスワードは8文字以上で設定してください
+        <p class="mt-2 text-2xl font-bold tracking-tight text-foreground">
+          {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
         </p>
       </div>
     </template>
@@ -224,6 +251,121 @@ async function updatePassword() {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+    </div>
+
+    <!-- DM送信状況 -->
+    <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+      <CardHeader class="gap-2">
+        <CardTitle class="text-2xl">
+          今月の自動返信状況
+        </CardTitle>
+        <CardDescription class="leading-6">
+          毎月1日にリセットされます。
+        </CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <div class="flex items-end justify-between">
+          <p class="text-4xl font-bold text-foreground">
+            {{ billing.replyUsedThisMonth }}
+            <span class="text-lg font-normal text-muted-foreground">/ {{ billing.replyLimit }} 件</span>
+          </p>
+          <Badge :variant="billing.plan === 'PRO' ? 'default' : 'secondary'" class="text-sm">
+            {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
+          </Badge>
+        </div>
+        <div class="h-3 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            class="h-full rounded-full transition-all"
+            :class="dmUsagePercent >= 100 ? 'bg-destructive' : dmUsagePercent >= 80 ? 'bg-amber-500' : 'bg-primary'"
+            :style="{ width: `${dmUsagePercent}%` }"
+          />
+        </div>
+        <p v-if="dmUsagePercent >= 100 && billing.plan === 'FREE'" class="text-sm font-medium text-destructive">
+          月間自動返信の上限に達しました。Proプランにアップグレードすると3,000件まで送れます。
+        </p>
+        <p v-else-if="dmUsagePercent >= 80 && billing.plan === 'FREE'" class="text-sm text-amber-700">
+          自動返信上限の{{ dmUsagePercent }}%に達しています。
+        </p>
+      </CardContent>
+    </Card>
+
+    <!-- プラン比較 -->
+    <div class="grid gap-6 md:grid-cols-2">
+      <Card
+        class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur"
+        :class="billing.plan === 'FREE' ? 'ring-2 ring-primary' : ''"
+      >
+        <CardHeader class="gap-2">
+          <div class="flex items-center justify-between">
+            <CardTitle class="text-xl">
+              Freeプラン
+            </CardTitle>
+            <Badge v-if="billing.plan === 'FREE'" variant="default">
+              ご利用中
+            </Badge>
+          </div>
+          <p class="text-3xl font-bold text-foreground">
+            ¥0
+            <span class="text-base font-normal text-muted-foreground">/ 月</span>
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ul class="space-y-2">
+            <li
+              v-for="feature in freeFeatures"
+              :key="feature"
+              class="flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <CheckCircle2 class="size-4 shrink-0 text-muted-foreground/60" />
+              {{ feature }}
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card
+        class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur"
+        :class="billing.plan === 'PRO' ? 'ring-2 ring-primary' : ''"
+      >
+        <CardHeader class="gap-2">
+          <div class="flex items-center justify-between">
+            <CardTitle class="text-xl">
+              Proプラン
+            </CardTitle>
+            <Badge v-if="billing.plan === 'PRO'" variant="default">
+              ご利用中
+            </Badge>
+          </div>
+          <p class="text-3xl font-bold text-foreground">
+            ¥2,980
+            <span class="text-base font-normal text-muted-foreground">/ 月</span>
+          </p>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <ul class="space-y-2">
+            <li
+              v-for="feature in proFeatures"
+              :key="feature"
+              class="flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <CheckCircle2 class="size-4 shrink-0 text-primary" />
+              {{ feature }}
+            </li>
+          </ul>
+          <div v-if="billing.plan === 'FREE'" class="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+            <p class="text-sm font-medium text-foreground">
+              Proプランへのアップグレードをご希望の方は、以下のメールアドレスまでご連絡ください。
+            </p>
+            <a
+              href="mailto:support@replia.jp"
+              class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Zap class="size-4" />
+              アップグレードを申し込む
+            </a>
+          </div>
         </CardContent>
       </Card>
     </div>

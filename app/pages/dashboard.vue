@@ -5,6 +5,12 @@ import { cn } from '@/lib/utils'
 import { instagramSetupSteps } from '@/lib/instagram-setup-guide'
 import { formatDate, getChannelLabel, getReplyStatusLabel } from '@/lib/replia-ui'
 
+type BillingInfo = {
+  plan: 'FREE' | 'PRO'
+  replyLimit: number
+  replyUsedThisMonth: number
+}
+
 definePageMeta({
   middleware: 'auth'
 })
@@ -63,51 +69,38 @@ const notice = ref('')
 const errorMessage = ref('')
 const isGuideDialogOpen = ref(false)
 const { hideGuide } = useInstagramSetupGuidePreference()
-const authState = useAuthStateRef()
-const meData = computed(() => authState.value)
-const isAdmin = computed(() => meData.value?.user?.role === 'ADMIN')
-
 const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
 const { data: eventsData, refresh: refreshEvents } = useFetch('/api/inbound-events')
 const { data: accountsData, refresh: refreshAccounts } = useFetch('/api/ig-accounts')
+const { data: billingData, refresh: refreshBilling } = useFetch('/api/billing')
 
 const rules = computed<ReplyRule[]>(() => rulesData.value?.rules || [])
 const events = computed<InboundEvent[]>(() => eventsData.value?.events || [])
 const accounts = computed<IgAccount[]>(() => accountsData.value?.accounts || [])
+const billing = computed<BillingInfo>(() => billingData.value as BillingInfo ?? { plan: 'FREE', replyLimit: 30, replyUsedThisMonth: 0 })
+const dmUsagePercent = computed(() => Math.min(100, Math.round((billing.value.replyUsedThisMonth / billing.value.replyLimit) * 100)))
 const enabledAccountsCount = computed(() => accounts.value.filter((account) => account.enabled).length)
 const activeRulesCount = computed(() => rules.value.filter((rule) => rule.isActive).length)
 const shouldShowInstagramSetupGuide = computed(() => accounts.value.length === 0 && !hideGuide.value)
 const instagramSetupPreviewSteps = computed(() => instagramSetupSteps.slice(0, 3))
 
-const quickLinks = computed(() => {
-  const items = [
-    {
-      title: 'Instagram連携',
-      to: '/instagram',
-      description: '接続状態を確認'
-    },
-    {
-      title: '返信ルール',
-      to: '/reply-rules',
-      description: '自動返信を編集'
-    },
-    {
-      title: '受信イベント',
-      to: '/events',
-      description: 'ログとテスト送信'
-    }
-  ]
-
-  if (isAdmin.value) {
-    items.push({
-      title: 'ユーザーマスター',
-      to: '/users',
-      description: '権限とユーザー管理'
-    })
+const quickLinks = [
+  {
+    title: 'Instagram連携',
+    to: '/instagram',
+    description: '接続状態を確認'
+  },
+  {
+    title: '返信ルール',
+    to: '/reply-rules',
+    description: '自動返信を編集'
+  },
+  {
+    title: '受信イベント',
+    to: '/events',
+    description: 'ログとテスト送信'
   }
-
-  return items
-})
+]
 
 const notifications = computed<NotificationItem[]>(() => {
   const items: NotificationItem[] = []
@@ -229,7 +222,8 @@ async function refreshAll() {
     await Promise.all([
       refreshAccounts(),
       refreshRules(),
-      refreshEvents()
+      refreshEvents(),
+      refreshBilling()
     ])
     setNotice('最近の通知を更新しました')
   }
@@ -412,16 +406,54 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
         </CardContent>
       </Card>
 
-      <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
-        <CardHeader class="gap-2">
-          <CardTitle class="text-2xl">
-            ショートカット
-          </CardTitle>
-          <CardDescription class="leading-6">
-            通知から対応する機能画面へすぐ移動できます。
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-3">
+      <div class="space-y-6">
+        <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+          <CardHeader class="gap-2">
+            <div class="flex items-center justify-between">
+              <CardTitle class="text-2xl">
+                今月のDM送信
+              </CardTitle>
+              <Badge :variant="billing.plan === 'PRO' ? 'default' : 'secondary'">
+                {{ billing.plan === 'PRO' ? 'Pro' : 'Free' }}
+              </Badge>
+            </div>
+            <CardDescription class="leading-6">
+              {{ billing.replyUsedThisMonth }} / {{ billing.replyLimit }} 件
+            </CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                class="h-full rounded-full transition-all"
+                :class="dmUsagePercent >= 100 ? 'bg-destructive' : dmUsagePercent >= 80 ? 'bg-amber-500' : 'bg-primary'"
+                :style="{ width: `${dmUsagePercent}%` }"
+              />
+            </div>
+            <div v-if="dmUsagePercent >= 100 && billing.plan === 'FREE'" class="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              月間DM上限に達しました。Proプランにアップグレードすると3,000件まで送れます。
+            </div>
+            <div v-else-if="dmUsagePercent >= 80 && billing.plan === 'FREE'" class="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
+              DM上限の{{ dmUsagePercent }}%に達しています。
+            </div>
+            <NuxtLink
+              to="/billing"
+              class="inline-flex items-center text-sm font-medium text-primary hover:underline"
+            >
+              プラン詳細を見る
+            </NuxtLink>
+          </CardContent>
+        </Card>
+
+        <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+          <CardHeader class="gap-2">
+            <CardTitle class="text-2xl">
+              ショートカット
+            </CardTitle>
+            <CardDescription class="leading-6">
+              通知から対応する機能画面へすぐ移動できます。
+            </CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3">
           <NuxtLink
             v-for="item in quickLinks"
             :key="item.to"
@@ -442,6 +474,7 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
           </NuxtLink>
         </CardContent>
       </Card>
+      </div>
     </div>
 
     <InstagramSetupGuideDialog
