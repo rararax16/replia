@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { EventChannel } from '@prisma/client'
-import { CheckCircle2, CircleAlert, MessageSquareText, RefreshCcw, Sparkles } from 'lucide-vue-next'
+import { CheckCircle2, CircleAlert, MessageSquareText, RefreshCcw, Sparkles, Zap } from 'lucide-vue-next'
 import { getChannelLabel } from '@/lib/replia-ui'
 
 definePageMeta({
@@ -27,11 +27,16 @@ const savingRule = ref(false)
 const refreshing = ref(false)
 const editingRuleId = ref<string | null>(null)
 
+const FREE_RULE_LIMIT = 2
+
 const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
+const { data: billingData } = useFetch('/api/billing')
 const rules = computed<ReplyRule[]>(() => rulesData.value?.rules || [])
 const activeRulesCount = computed(() => rules.value.filter((rule) => rule.isActive).length)
 const dmRulesCount = computed(() => rules.value.filter((rule) => rule.channel === 'DM').length)
 const commentRulesCount = computed(() => rules.value.filter((rule) => rule.channel === 'COMMENT').length)
+const currentPlan = computed(() => (billingData.value as any)?.plan ?? 'FREE')
+const isAtRuleLimit = computed(() => currentPlan.value === 'FREE' && rules.value.length >= FREE_RULE_LIMIT)
 
 const ruleForm = reactive({
   channel: 'DM' as EventChannel,
@@ -233,6 +238,18 @@ function updateRulePriority(value: string | number) {
           <CardDescription class="leading-6">
             登録したキーワードに一致した場合、優先度順で自動返信します。
           </CardDescription>
+          <div v-if="isAtRuleLimit && !editingRuleId" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+            <p class="text-sm font-medium text-amber-800">
+              Freeプランのルール上限（{{ FREE_RULE_LIMIT }}件）に達しています
+            </p>
+            <a
+              href="mailto:support@replia.jp"
+              class="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Zap class="size-3" />
+              Proプランにアップグレード
+            </a>
+          </div>
         </CardHeader>
         <CardContent>
           <form class="space-y-5" @submit.prevent="saveRule">
@@ -300,7 +317,7 @@ function updateRulePriority(value: string | number) {
             </div>
 
             <div class="flex flex-wrap gap-3">
-              <Button type="submit" :disabled="savingRule">
+              <Button type="submit" :disabled="savingRule || (isAtRuleLimit && !editingRuleId)">
                 <Sparkles class="size-4" />
                 {{ savingRule ? '保存中...' : editingRuleId ? 'ルール更新' : 'ルール追加' }}
               </Button>
