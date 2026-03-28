@@ -29,10 +29,11 @@ type UserRow = {
 const submitting = ref(false)
 const refreshing = ref(false)
 const showCreateForm = ref(false)
-const { data: usersData, refresh: refreshUsers } = useFetch('/api/users')
+const { data: usersData, refresh: refreshUsers, status: usersStatus } = useFetch('/api/users')
 const users = computed<UserRow[]>(() => (usersData.value as any)?.users || [])
 const adminCount = computed(() => users.value.filter((u) => u.role === 'ADMIN').length)
 const memberCount = computed(() => users.value.filter((u) => u.role === 'MEMBER').length)
+const isLoading = computed(() => usersStatus.value === 'pending')
 
 const form = reactive({
   email: '',
@@ -147,7 +148,10 @@ function getRoleLabel(role: UserRole) {
             <p class="text-sm font-medium text-muted-foreground">
               総ユーザー数
             </p>
-            <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            <template v-if="isLoading">
+              <Skeleton class="mt-2 h-9 w-20" />
+            </template>
+            <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
               {{ users.length }}件
             </p>
           </div>
@@ -161,7 +165,10 @@ function getRoleLabel(role: UserRole) {
         <p class="text-sm font-medium text-muted-foreground">
           管理者
         </p>
-        <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-9 w-16" />
+        </template>
+        <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
           {{ adminCount }}件
         </p>
       </div>
@@ -170,7 +177,10 @@ function getRoleLabel(role: UserRole) {
         <p class="text-sm font-medium text-muted-foreground">
           一般ユーザー
         </p>
-        <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-9 w-16" />
+        </template>
+        <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
           {{ memberCount }}件
         </p>
       </div>
@@ -235,6 +245,12 @@ function getRoleLabel(role: UserRole) {
         <CardDescription>登録済みユーザーの一覧です。</CardDescription>
       </CardHeader>
       <CardContent>
+        <template v-if="isLoading">
+          <div class="space-y-3">
+            <Skeleton v-for="i in 4" :key="`skeleton-user-${i}`" class="h-12 w-full rounded-lg" />
+          </div>
+        </template>
+        <template v-else>
         <div class="overflow-hidden rounded-[1.5rem] border border-border/70">
           <Table>
             <TableHeader>
@@ -317,6 +333,7 @@ function getRoleLabel(role: UserRole) {
             </TableBody>
           </Table>
         </div>
+        </template>
       </CardContent>
     </Card>
   </AppAuthenticatedShell>

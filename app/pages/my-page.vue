@@ -26,8 +26,9 @@ type BillingInfo = {
   stripeSubscriptionId: string | null
 }
 
-const { data: billingData, refresh: refreshBilling } = useFetch('/api/billing')
+const { data: billingData, refresh: refreshBilling, status: billingStatus } = useFetch('/api/billing')
 const billing = computed<BillingInfo>(() => billingData.value as BillingInfo ?? { plan: 'FREE', replyLimit: 100, replyUsedThisMonth: 0, planAutoRenew: false, planExpiresAt: null, stripeCustomerId: null, stripeSubscriptionId: null })
+const isBillingLoading = computed(() => billingStatus.value === 'pending')
 const dmUsagePercent = computed(() => Math.min(100, Math.round((billing.value.replyUsedThisMonth / billing.value.replyLimit) * 100)))
 
 const freeFeatures = [
@@ -142,12 +143,17 @@ async function updatePassword() {
         <p class="text-sm font-medium text-muted-foreground">
           ご利用中のプラン
         </p>
-        <p class="mt-2 text-2xl font-bold tracking-tight text-foreground">
-          {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
-        </p>
-        <p v-if="billing.plan === 'PRO' && !billing.planAutoRenew && billing.planExpiresAt" class="mt-2 text-sm text-amber-700">
-          {{ formatDate(billing.planExpiresAt) }} に終了
-        </p>
+        <template v-if="isBillingLoading">
+          <Skeleton class="mt-2 h-8 w-28" />
+        </template>
+        <template v-else>
+          <p class="mt-2 text-2xl font-bold tracking-tight text-foreground">
+            {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
+          </p>
+          <p v-if="billing.plan === 'PRO' && !billing.planAutoRenew && billing.planExpiresAt" class="mt-2 text-sm text-amber-700">
+            {{ formatDate(billing.planExpiresAt) }} に終了
+          </p>
+        </template>
       </div>
     </template>
 
@@ -270,33 +276,44 @@ async function updatePassword() {
         </CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
-        <div class="flex items-end justify-between">
-          <p class="text-4xl font-bold text-foreground">
-            {{ billing.replyUsedThisMonth }}
-            <span class="text-lg font-normal text-muted-foreground">/ {{ billing.replyLimit }} 件</span>
-          </p>
-          <div class="text-right">
-            <Badge :variant="billing.plan === 'PRO' ? 'default' : 'secondary'" class="text-sm">
-              {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
-            </Badge>
-            <p v-if="billing.plan === 'PRO' && !billing.planAutoRenew && billing.planExpiresAt" class="mt-1 text-xs text-amber-700">
-              {{ formatDate(billing.planExpiresAt) }} に終了
-            </p>
+        <template v-if="isBillingLoading">
+          <div class="space-y-4">
+            <div class="flex items-end justify-between">
+              <Skeleton class="h-10 w-32" />
+              <Skeleton class="h-5 w-16 rounded-full" />
+            </div>
+            <Skeleton class="h-3 w-full rounded-full" />
           </div>
-        </div>
-        <div class="h-3 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            class="h-full rounded-full transition-all"
-            :class="dmUsagePercent >= 100 ? 'bg-destructive' : dmUsagePercent >= 80 ? 'bg-amber-500' : 'bg-primary'"
-            :style="{ width: `${dmUsagePercent}%` }"
-          />
-        </div>
-        <p v-if="dmUsagePercent >= 100 && billing.plan === 'FREE'" class="text-sm font-medium text-destructive">
-          月間自動返信の上限に達しました。Proプランにアップグレードすると3,000件まで送れます。
-        </p>
-        <p v-else-if="dmUsagePercent >= 80 && billing.plan === 'FREE'" class="text-sm text-amber-700">
-          自動返信上限の{{ dmUsagePercent }}%に達しています。
-        </p>
+        </template>
+        <template v-else>
+          <div class="flex items-end justify-between">
+            <p class="text-4xl font-bold text-foreground">
+              {{ billing.replyUsedThisMonth }}
+              <span class="text-lg font-normal text-muted-foreground">/ {{ billing.replyLimit }} 件</span>
+            </p>
+            <div class="text-right">
+              <Badge :variant="billing.plan === 'PRO' ? 'default' : 'secondary'" class="text-sm">
+                {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
+              </Badge>
+              <p v-if="billing.plan === 'PRO' && !billing.planAutoRenew && billing.planExpiresAt" class="mt-1 text-xs text-amber-700">
+                {{ formatDate(billing.planExpiresAt) }} に終了
+              </p>
+            </div>
+          </div>
+          <div class="h-3 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              class="h-full rounded-full transition-all"
+              :class="dmUsagePercent >= 100 ? 'bg-destructive' : dmUsagePercent >= 80 ? 'bg-amber-500' : 'bg-primary'"
+              :style="{ width: `${dmUsagePercent}%` }"
+            />
+          </div>
+          <p v-if="dmUsagePercent >= 100 && billing.plan === 'FREE'" class="text-sm font-medium text-destructive">
+            月間自動返信の上限に達しました。Proプランにアップグレードすると3,000件まで送れます。
+          </p>
+          <p v-else-if="dmUsagePercent >= 80 && billing.plan === 'FREE'" class="text-sm text-amber-700">
+            自動返信上限の{{ dmUsagePercent }}%に達しています。
+          </p>
+        </template>
       </CardContent>
     </Card>
 
@@ -311,7 +328,10 @@ async function updatePassword() {
             <CardTitle class="text-xl">
               Freeプラン
             </CardTitle>
-            <Badge v-if="billing.plan === 'FREE'" variant="default">
+            <template v-if="isBillingLoading">
+              <Skeleton class="h-5 w-16 rounded-full" />
+            </template>
+            <Badge v-else-if="billing.plan === 'FREE'" variant="default">
               ご利用中
             </Badge>
           </div>
@@ -343,7 +363,10 @@ async function updatePassword() {
             <CardTitle class="text-xl">
               Proプラン
             </CardTitle>
-            <Badge v-if="billing.plan === 'PRO'" variant="default">
+            <template v-if="isBillingLoading">
+              <Skeleton class="h-5 w-16 rounded-full" />
+            </template>
+            <Badge v-else-if="billing.plan === 'PRO'" variant="default">
               ご利用中
             </Badge>
           </div>

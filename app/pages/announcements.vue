@@ -19,8 +19,9 @@ type Announcement = {
 }
 
 const refreshing = ref(false)
-const { data, refresh } = useFetch('/api/announcements', { default: () => ({ announcements: [] }) })
+const { data, refresh, status } = useFetch('/api/announcements', { default: () => ({ announcements: [] }) })
 const announcements = computed<Announcement[]>(() => (data.value as any)?.announcements ?? [])
+const isLoading = computed(() => status.value === 'pending')
 
 async function refreshPage() {
   refreshing.value = true
@@ -45,7 +46,10 @@ async function refreshPage() {
             <p class="text-sm font-medium text-muted-foreground">
               お知らせ件数
             </p>
-            <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            <template v-if="isLoading">
+              <Skeleton class="mt-2 h-9 w-20" />
+            </template>
+            <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
               {{ announcements.length }}件
             </p>
           </div>
@@ -73,27 +77,43 @@ async function refreshPage() {
         </CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
-        <div v-if="announcements.length === 0" class="rounded-[1.5rem] border border-dashed border-border/70 bg-muted/10 p-8 text-center text-sm text-muted-foreground">
-          現在お知らせはありません
-        </div>
-
-        <article
-          v-for="item in announcements"
-          :key="item.id"
-          class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-5 space-y-3"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-lg font-semibold text-foreground">
-              {{ item.title }}
-            </h2>
-            <p class="text-xs text-muted-foreground">
-              {{ formatDate(item.publishAt) }}
-            </p>
+        <template v-if="isLoading">
+          <div
+            v-for="i in 3"
+            :key="`skeleton-announcement-${i}`"
+            class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-5 space-y-3"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <Skeleton class="h-6 w-2/5" />
+              <Skeleton class="h-4 w-24" />
+            </div>
+            <Skeleton class="h-4 w-4/5" />
+            <Skeleton class="h-4 w-3/5" />
           </div>
-          <p class="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-            {{ item.body }}
-          </p>
-        </article>
+        </template>
+        <template v-else>
+          <div v-if="announcements.length === 0" class="rounded-[1.5rem] border border-dashed border-border/70 bg-muted/10 p-8 text-center text-sm text-muted-foreground">
+            現在お知らせはありません
+          </div>
+
+          <article
+            v-for="item in announcements"
+            :key="item.id"
+            class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-5 space-y-3"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="text-lg font-semibold text-foreground">
+                {{ item.title }}
+              </h2>
+              <p class="text-xs text-muted-foreground">
+                {{ formatDate(item.publishAt) }}
+              </p>
+            </div>
+            <p class="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+              {{ item.body }}
+            </p>
+          </article>
+        </template>
       </CardContent>
     </Card>
 

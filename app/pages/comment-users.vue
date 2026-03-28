@@ -19,8 +19,9 @@ type CommentUser = {
 }
 
 const refreshing = ref(false)
-const { data, refresh } = useFetch('/api/comment-users', { default: () => ({ commentUsers: [] }) })
+const { data, refresh, status } = useFetch('/api/comment-users', { default: () => ({ commentUsers: [] }) })
 const commentUsers = computed<CommentUser[]>(() => (data.value as any)?.commentUsers ?? [])
+const isLoading = computed(() => status.value === 'pending')
 
 async function refreshPage() {
   refreshing.value = true
@@ -45,7 +46,10 @@ async function refreshPage() {
             <p class="text-sm font-medium text-muted-foreground">
               コメントユーザー数
             </p>
-            <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            <template v-if="isLoading">
+              <Skeleton class="mt-2 h-9 w-20" />
+            </template>
+            <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
               {{ commentUsers.length }}人
             </p>
           </div>
@@ -61,7 +65,10 @@ async function refreshPage() {
             <p class="text-sm font-medium text-muted-foreground">
               総コメント数
             </p>
-            <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            <template v-if="isLoading">
+              <Skeleton class="mt-2 h-9 w-20" />
+            </template>
+            <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
               {{ commentUsers.reduce((sum, u) => sum + u.commentCount, 0) }}件
             </p>
           </div>
@@ -98,6 +105,12 @@ async function refreshPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <template v-if="isLoading">
+          <div class="space-y-3">
+            <Skeleton v-for="i in 4" :key="`skeleton-comment-user-${i}`" class="h-12 w-full rounded-lg" />
+          </div>
+        </template>
+        <template v-else>
         <div class="overflow-hidden rounded-[1.5rem] border border-border/70">
           <Table>
             <TableHeader>
@@ -146,6 +159,7 @@ async function refreshPage() {
             </TableBody>
           </Table>
         </div>
+        </template>
       </CardContent>
     </Card>
   </AppAuthenticatedShell>
