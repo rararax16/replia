@@ -504,6 +504,8 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
       </div>
     </div>
 
+    <AppAdBanner v-if="billing.plan === 'FREE'" />
+
     <InstagramSetupGuideDialog
       v-model:open="isGuideDialogOpen"
       :show-hide-preference="true"

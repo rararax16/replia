@@ -183,5 +183,9 @@ async function submit() {
         </CardFooter>
       </Card>
     </div>
+
+    <div class="mx-auto max-w-6xl">
+      <AppAdBanner />
+    </div>
   </main>
 </template>

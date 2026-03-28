@@ -7,6 +7,13 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Replia',
+      script: [
+        {
+          src: 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4003353824515477',
+          async: true,
+          crossorigin: 'anonymous'
+        }
+      ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
@@ -33,7 +40,10 @@ export default defineNuxtConfig({
       'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments',
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-    stripeProPriceId: process.env.STRIPE_PRO_PRICE_ID
+    stripeProPriceId: process.env.STRIPE_PRO_PRICE_ID,
+    public: {
+      adsenseAdSlot: process.env.ADSENSE_AD_SLOT || ''
+    }
   },
 
   modules: ['@nuxtjs/tailwindcss', 'shadcn-nuxt'],
