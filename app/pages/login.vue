@@ -137,7 +137,12 @@ async function submit() {
             </div>
 
             <div class="space-y-2">
-              <Label for="password">パスワード</Label>
+              <div class="flex items-center justify-between">
+                <Label for="password">パスワード</Label>
+                <NuxtLink class="text-xs font-medium text-primary hover:text-primary/80" to="/forgot-password">
+                  パスワードをお忘れの方
+                </NuxtLink>
+              </div>
               <AppPasswordInput
                 id="password"
                 v-model="password"
