@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EventChannel, ReplyStatus } from '@prisma/client'
 import { Activity, BellRing, CheckCircle2, CircleAlert, Instagram, MessageSquareText, RefreshCcw, Users } from 'lucide-vue-next'
+const { showSuccess: setNotice, showError: setError } = useSnackbar()
 import { cn } from '@/lib/utils'
 import { instagramSetupSteps } from '@/lib/instagram-setup-guide'
 import { formatDate, getChannelLabel, getReplyStatusLabel } from '@/lib/replia-ui'
@@ -65,8 +66,6 @@ type NotificationItem = {
 }
 
 const refreshing = ref(false)
-const notice = ref('')
-const errorMessage = ref('')
 const isGuideDialogOpen = ref(false)
 const { hideGuide } = useInstagramSetupGuidePreference()
 const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
@@ -205,16 +204,6 @@ const notifications = computed<NotificationItem[]>(() => {
   return items.slice(0, 8)
 })
 
-function setNotice(message: string) {
-  notice.value = message
-  errorMessage.value = ''
-}
-
-function setError(message: string) {
-  errorMessage.value = message
-  notice.value = ''
-}
-
 async function refreshAll() {
   refreshing.value = true
 
@@ -269,18 +258,6 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
         更新
       </Button>
     </template>
-
-    <Alert v-if="notice">
-      <CheckCircle2 class="size-4" />
-      <AlertTitle>更新が完了しました</AlertTitle>
-      <AlertDescription>{{ notice }}</AlertDescription>
-    </Alert>
-
-    <Alert v-if="errorMessage" variant="destructive">
-      <CircleAlert class="size-4" />
-      <AlertTitle>処理に失敗しました</AlertTitle>
-      <AlertDescription>{{ errorMessage }}</AlertDescription>
-    </Alert>
 
     <Card
       v-if="shouldShowInstagramSetupGuide"

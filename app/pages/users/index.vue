@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { CircleAlert, LoaderCircle, RefreshCcw, ShieldCheck, UserPlus, Users } from 'lucide-vue-next'
+import { ExternalLink, LoaderCircle, RefreshCcw, UserPlus, Users } from 'lucide-vue-next'
+
+const { showSuccess: setNotice, showError: setError } = useSnackbar()
 import { formatDate } from '@/lib/replia-ui'
 
 definePageMeta({
@@ -18,13 +20,12 @@ type UserRow = {
   email: string
   role: UserRole
   plan: UserPlan
+  planAutoRenew: boolean
   planExpiresAt: string | null
   enabled: boolean
   createdAt: string
 }
 
-const notice = ref('')
-const errorMessage = ref('')
 const submitting = ref(false)
 const refreshing = ref(false)
 const showCreateForm = ref(false)
@@ -38,16 +39,6 @@ const form = reactive({
   password: '',
   role: 'MEMBER' as UserRole
 })
-
-function setNotice(message: string) {
-  notice.value = message
-  errorMessage.value = ''
-}
-
-function setError(message: string) {
-  errorMessage.value = message
-  notice.value = ''
-}
 
 function resetForm() {
   form.email = ''
@@ -185,18 +176,6 @@ function getRoleLabel(role: UserRole) {
       </div>
     </template>
 
-    <Alert v-if="notice">
-      <ShieldCheck class="size-4" />
-      <AlertTitle>操作が完了しました</AlertTitle>
-      <AlertDescription>{{ notice }}</AlertDescription>
-    </Alert>
-
-    <Alert v-if="errorMessage" variant="destructive">
-      <CircleAlert class="size-4" />
-      <AlertTitle>処理に失敗しました</AlertTitle>
-      <AlertDescription>{{ errorMessage }}</AlertDescription>
-    </Alert>
-
     <!-- ユーザー追加フォーム -->
     <Card v-if="showCreateForm" class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
       <CardHeader class="gap-2">
@@ -264,7 +243,7 @@ function getRoleLabel(role: UserRole) {
                 <TableHead class="w-28">ロール</TableHead>
                 <TableHead class="w-24">プラン</TableHead>
                 <TableHead class="w-24">状態</TableHead>
-                <TableHead class="w-36">有効期限</TableHead>
+                <TableHead class="w-40">更新・期限</TableHead>
                 <TableHead class="w-44">作成日時</TableHead>
                 <TableHead class="w-40">操作</TableHead>
               </TableRow>
@@ -289,8 +268,21 @@ function getRoleLabel(role: UserRole) {
                     {{ user.enabled ? '有効' : '無効' }}
                   </Badge>
                 </TableCell>
-                <TableCell class="text-sm text-muted-foreground">
-                  {{ user.planExpiresAt ? formatDate(user.planExpiresAt) : '—' }}
+                <TableCell class="text-sm">
+                  <template v-if="user.plan === 'FREE'">
+                    <span class="text-muted-foreground">—</span>
+                  </template>
+                  <template v-else-if="user.planAutoRenew">
+                    <Badge variant="default" class="text-xs">
+                      自動更新
+                    </Badge>
+                  </template>
+                  <template v-else-if="user.planExpiresAt">
+                    <span class="text-muted-foreground">{{ formatDate(user.planExpiresAt) }} まで</span>
+                  </template>
+                  <template v-else>
+                    <span class="text-muted-foreground">—</span>
+                  </template>
                 </TableCell>
                 <TableCell class="text-sm text-muted-foreground">
                   {{ formatDate(user.createdAt) }}
@@ -299,6 +291,16 @@ function getRoleLabel(role: UserRole) {
                   <div class="flex gap-2">
                     <Button size="sm" variant="outline" as-child>
                       <NuxtLink :to="`/users/${user.id}`">編集</NuxtLink>
+                    </Button>
+                    <Button v-if="user.plan === 'PRO'" size="sm" variant="outline" as-child>
+                      <a
+                        :href="`https://dashboard.stripe.com/customers?email=${encodeURIComponent(user.email)}`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink class="size-3.5" />
+                        Stripe
+                      </a>
                     </Button>
                     <Button size="sm" :variant="user.enabled ? 'outline' : 'default'" @click="toggleEnabled(user)">
                       {{ user.enabled ? '無効化' : '有効化' }}

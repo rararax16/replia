@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { EventChannel, ReplyStatus } from '@prisma/client'
-import { CheckCircle2, CircleAlert, Clock3, ExternalLink, RefreshCcw, Send } from 'lucide-vue-next'
+import { Clock3, ExternalLink, RefreshCcw, Send } from 'lucide-vue-next'
+
+const { showSuccess: setNotice, showError: setError } = useSnackbar()
 import { formatDate, getChannelLabel, getInstagramProfileUrl, getReplyStatusLabel, getReplyStatusVariant } from '@/lib/replia-ui'
 
 definePageMeta({
@@ -27,8 +29,6 @@ type InboundEvent = {
   }>
 }
 
-const notice = ref('')
-const errorMessage = ref('')
 const sendingTestEvent = ref(false)
 const refreshing = ref(false)
 
@@ -44,16 +44,6 @@ const inboundForm = reactive({
   senderUsername: '',
   content: ''
 })
-
-function setNotice(message: string) {
-  notice.value = message
-  errorMessage.value = ''
-}
-
-function setError(message: string) {
-  errorMessage.value = message
-  notice.value = ''
-}
 
 async function refreshPage() {
   refreshing.value = true
@@ -139,18 +129,6 @@ async function simulateInboundEvent() {
         </p>
       </div>
     </template>
-
-    <Alert v-if="notice">
-      <CheckCircle2 class="size-4" />
-      <AlertTitle>操作が完了しました</AlertTitle>
-      <AlertDescription>{{ notice }}</AlertDescription>
-    </Alert>
-
-    <Alert v-if="errorMessage" variant="destructive">
-      <CircleAlert class="size-4" />
-      <AlertTitle>処理に失敗しました</AlertTitle>
-      <AlertDescription>{{ errorMessage }}</AlertDescription>
-    </Alert>
 
     <div class="grid gap-6 xl:grid-cols-[420px_1fr]">
       <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">

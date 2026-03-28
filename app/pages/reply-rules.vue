@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { EventChannel } from '@prisma/client'
-import { CheckCircle2, CircleAlert, MessageSquareText, RefreshCcw, Sparkles, Zap } from 'lucide-vue-next'
+import { MessageSquareText, RefreshCcw, Sparkles, Zap } from 'lucide-vue-next'
+
+const { showSuccess: setNotice, showError: setError } = useSnackbar()
 import { getChannelLabel } from '@/lib/replia-ui'
 
 definePageMeta({
@@ -21,13 +23,11 @@ type ReplyRule = {
   createdAt: string
 }
 
-const notice = ref('')
-const errorMessage = ref('')
 const savingRule = ref(false)
 const refreshing = ref(false)
 const editingRuleId = ref<string | null>(null)
 
-const FREE_RULE_LIMIT = 2
+const FREE_RULE_LIMIT = 5
 
 const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
 const { data: billingData } = useFetch('/api/billing')
@@ -45,16 +45,6 @@ const ruleForm = reactive({
   priority: 100,
   isActive: true
 })
-
-function setNotice(message: string) {
-  notice.value = message
-  errorMessage.value = ''
-}
-
-function setError(message: string) {
-  errorMessage.value = message
-  notice.value = ''
-}
 
 function resetRuleForm() {
   editingRuleId.value = null
@@ -211,18 +201,6 @@ function updateRulePriority(value: string | number) {
         </p>
       </div>
     </template>
-
-    <Alert v-if="notice">
-      <CheckCircle2 class="size-4" />
-      <AlertTitle>操作が完了しました</AlertTitle>
-      <AlertDescription>{{ notice }}</AlertDescription>
-    </Alert>
-
-    <Alert v-if="errorMessage" variant="destructive">
-      <CircleAlert class="size-4" />
-      <AlertTitle>処理に失敗しました</AlertTitle>
-      <AlertDescription>{{ errorMessage }}</AlertDescription>
-    </Alert>
 
     <div class="grid gap-6 xl:grid-cols-[420px_1fr]">
       <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">

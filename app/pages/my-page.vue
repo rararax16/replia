@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { CheckCircle2, CircleAlert, KeyRound, LoaderCircle, LockKeyhole, ShieldCheck, Zap } from 'lucide-vue-next'
+import { CheckCircle2, KeyRound, LoaderCircle, LockKeyhole, Zap } from 'lucide-vue-next'
+import { formatDate } from '@/lib/replia-ui'
+
+const { showSuccess: setNotice, showError: setError } = useSnackbar()
 
 definePageMeta({
   middleware: 'auth'
@@ -17,48 +20,58 @@ type BillingInfo = {
   plan: 'FREE' | 'PRO'
   replyLimit: number
   replyUsedThisMonth: number
+  planAutoRenew: boolean
+  planExpiresAt: string | null
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
 }
 
-const { data: billingData } = useFetch('/api/billing')
-const billing = computed<BillingInfo>(() => billingData.value as BillingInfo ?? { plan: 'FREE', replyLimit: 30, replyUsedThisMonth: 0 })
+const { data: billingData, refresh: refreshBilling } = useFetch('/api/billing')
+const billing = computed<BillingInfo>(() => billingData.value as BillingInfo ?? { plan: 'FREE', replyLimit: 100, replyUsedThisMonth: 0, planAutoRenew: false, planExpiresAt: null, stripeCustomerId: null, stripeSubscriptionId: null })
 const dmUsagePercent = computed(() => Math.min(100, Math.round((billing.value.replyUsedThisMonth / billing.value.replyLimit) * 100)))
 
 const freeFeatures = [
   'Instagramアカウント 1件',
-  'キーワード返信ルール 2件まで設定可',
-  '月20件まで自動返信（DM・コメント合計）',
-  'コメント → DM自動送信'
-]
-
-const proFeatures = [
-  'Instagramアカウント 1件',
-  'キーワード返信 無制限',
-  '月3,000件まで自動返信（DM・コメント合計）',
+  'キーワード返信ルール 5件まで設定可',
+  '月100件まで自動返信（DM・コメント合計）',
   'コメント → DM自動送信',
-  'コメントユーザー一覧',
-  'タグ管理（簡易CRM）',
-  '優先サポート'
+  'コメントユーザー一覧'
 ]
 
-const notice = ref('')
-const errorMessage = ref('')
+const route = useRoute()
+const router = useRouter()
+
 const submitting = ref(false)
+const billingLoading = ref(false)
+
+onMounted(async () => {
+  if (route.query.checkout === 'success') {
+    await refreshBilling()
+    setNotice('Proプランへのアップグレードが完了しました。')
+    router.replace({ query: {} })
+  }
+})
+
+
+async function openPortal() {
+  billingLoading.value = true
+  try {
+    const res = await $fetch<{ data: { url: string } }>('/api/billing/portal', { method: 'POST' })
+    if (res.data.url) window.location.href = res.data.url
+  }
+  catch (error: any) {
+    setError(error?.data?.message || error?.data?.statusMessage || 'ポータルの開始に失敗しました')
+  }
+  finally {
+    billingLoading.value = false
+  }
+}
 
 const form = reactive({
   currentPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
-
-function setNotice(message: string) {
-  notice.value = message
-  errorMessage.value = ''
-}
-
-function setError(message: string) {
-  errorMessage.value = message
-  notice.value = ''
-}
 
 function resetForm() {
   form.currentPassword = ''
@@ -132,20 +145,11 @@ async function updatePassword() {
         <p class="mt-2 text-2xl font-bold tracking-tight text-foreground">
           {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
         </p>
+        <p v-if="billing.plan === 'PRO' && !billing.planAutoRenew && billing.planExpiresAt" class="mt-2 text-sm text-amber-700">
+          {{ formatDate(billing.planExpiresAt) }} に終了
+        </p>
       </div>
     </template>
-
-    <Alert v-if="notice">
-      <ShieldCheck class="size-4" />
-      <AlertTitle>変更が完了しました</AlertTitle>
-      <AlertDescription>{{ notice }}</AlertDescription>
-    </Alert>
-
-    <Alert v-if="errorMessage" variant="destructive">
-      <CircleAlert class="size-4" />
-      <AlertTitle>処理に失敗しました</AlertTitle>
-      <AlertDescription>{{ errorMessage }}</AlertDescription>
-    </Alert>
 
     <div class="grid gap-6 xl:grid-cols-[340px_1fr]">
       <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
@@ -271,9 +275,14 @@ async function updatePassword() {
             {{ billing.replyUsedThisMonth }}
             <span class="text-lg font-normal text-muted-foreground">/ {{ billing.replyLimit }} 件</span>
           </p>
-          <Badge :variant="billing.plan === 'PRO' ? 'default' : 'secondary'" class="text-sm">
-            {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
-          </Badge>
+          <div class="text-right">
+            <Badge :variant="billing.plan === 'PRO' ? 'default' : 'secondary'" class="text-sm">
+              {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
+            </Badge>
+            <p v-if="billing.plan === 'PRO' && !billing.planAutoRenew && billing.planExpiresAt" class="mt-1 text-xs text-amber-700">
+              {{ formatDate(billing.planExpiresAt) }} に終了
+            </p>
+          </div>
         </div>
         <div class="h-3 w-full overflow-hidden rounded-full bg-muted">
           <div
@@ -338,33 +347,19 @@ async function updatePassword() {
               ご利用中
             </Badge>
           </div>
-          <p class="text-3xl font-bold text-foreground">
-            ¥2,980
-            <span class="text-base font-normal text-muted-foreground">/ 月</span>
-          </p>
         </CardHeader>
-        <CardContent class="space-y-4">
-          <ul class="space-y-2">
-            <li
-              v-for="feature in proFeatures"
-              :key="feature"
-              class="flex items-center gap-2 text-sm text-muted-foreground"
-            >
-              <CheckCircle2 class="size-4 shrink-0 text-primary" />
-              {{ feature }}
-            </li>
-          </ul>
-          <div v-if="billing.plan === 'FREE'" class="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
-            <p class="text-sm font-medium text-foreground">
-              Proプランへのアップグレードをご希望の方は、以下のメールアドレスまでご連絡ください。
-            </p>
-            <a
-              href="mailto:support@replia.jp"
-              class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
+        <CardContent>
+          <div v-if="billing.plan === 'PRO' && billing.stripeCustomerId">
+            <Button variant="outline" class="w-full" :disabled="billingLoading" @click="openPortal">
+              <LoaderCircle v-if="billingLoading" class="size-4 animate-spin" />
+              お支払い・プラン管理
+            </Button>
+          </div>
+          <div v-else>
+            <Button class="w-full" disabled>
               <Zap class="size-4" />
-              アップグレードを申し込む
-            </a>
+              Coming Soon...
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ArrowLeft, CircleAlert, LoaderCircle, ShieldCheck } from 'lucide-vue-next'
+import { ArrowLeft, LoaderCircle } from 'lucide-vue-next'
+
+const { showSuccess: setNotice, showError: setError } = useSnackbar()
 
 definePageMeta({
   middleware: 'admin'
@@ -15,83 +17,84 @@ useHead({
   title: 'ユーザー編集 | Replia'
 })
 
-const notice = ref('')
-const errorMessage = ref('')
 const submitting = ref(false)
 
 const { data, error } = await useFetch(`/api/users/${id}`)
+
 const userData = computed(() => (data.value as any)?.user)
 
 if (error.value || !userData.value) {
   throw createError({ statusCode: 404, message: 'ユーザーが見つかりません' })
 }
 
-const userForm = reactive({
+const form = reactive({
   email: userData.value.email as string,
   role: userData.value.role as UserRole,
-  enabled: userData.value.enabled as boolean,
-  password: ''
-})
-
-const planForm = reactive({
+  enabled: Boolean(userData.value.enabled),
+  password: '',
   plan: userData.value.plan as UserPlan,
   planExpiresAt: userData.value.planExpiresAt
     ? (userData.value.planExpiresAt as string).slice(0, 10)
     : '',
-  planAutoRenew: userData.value.planAutoRenew as boolean
+  planAutoRenew: Boolean(userData.value.planAutoRenew)
 })
 
-function setNotice(message: string) {
-  notice.value = message
-  errorMessage.value = ''
-}
+watch(data, (newData) => {
+  const u = (newData as any)?.user
+  if (!u) return
+  form.enabled = Boolean(u.enabled)
+  form.planAutoRenew = Boolean(u.planAutoRenew)
+})
 
-function setError(message: string) {
-  errorMessage.value = message
-  notice.value = ''
-}
-
-async function saveUserInfo() {
+async function save() {
   submitting.value = true
   try {
-    const body: Record<string, any> = {
-      email: userForm.email,
-      role: userForm.role,
-      enabled: userForm.enabled
+    const userBody: Record<string, any> = {
+      email: form.email,
+      role: form.role,
+      enabled: form.enabled
     }
-    if (userForm.password) {
-      body.password = userForm.password
+    if (form.password) {
+      userBody.password = form.password
     }
-    await $fetch(`/api/users/${id}`, { method: 'PUT', body })
-    userForm.password = ''
-    setNotice('ユーザー情報を更新しました')
+
+    await Promise.all([
+      $fetch(`/api/users/${id}`, { method: 'PUT', body: userBody }),
+      $fetch(`/api/admin/plans/${id}`, {
+        method: 'PATCH',
+        body: {
+          plan: form.plan,
+          planExpiresAt: form.planExpiresAt || null,
+          planAutoRenew: form.planAutoRenew
+        }
+      })
+    ])
+
+    form.password = ''
+    setNotice('ユーザー情報を保存しました')
   }
   catch (e: any) {
-    setError(e?.data?.message || e?.data?.statusMessage || 'ユーザー情報の更新に失敗しました')
+    setError(e?.data?.message || e?.data?.statusMessage || '保存に失敗しました')
   }
   finally {
     submitting.value = false
   }
 }
 
-async function saveUserPlan() {
-  submitting.value = true
+async function resetStripeSubscription() {
+  if (!confirm('Stripeサブスクリプション情報をリセットしますか？（テスト用）')) return
   try {
     await $fetch(`/api/admin/plans/${id}`, {
       method: 'PATCH',
-      body: {
-        plan: planForm.plan,
-        planExpiresAt: planForm.planExpiresAt || null,
-        planAutoRenew: planForm.planAutoRenew
-      }
+      body: { plan: 'FREE', planAutoRenew: false, planExpiresAt: null, resetStripeSubscription: true }
     })
-    setNotice('プランを更新しました')
+    form.plan = 'FREE'
+    form.planAutoRenew = false
+    form.planExpiresAt = ''
+    setNotice('Stripeサブスクリプション情報をリセットしました')
   }
   catch (e: any) {
-    setError(e?.data?.message || e?.data?.statusMessage || 'プランの更新に失敗しました')
-  }
-  finally {
-    submitting.value = false
+    setError(e?.data?.message || e?.data?.statusMessage || 'リセットに失敗しました')
   }
 }
 </script>
@@ -116,19 +119,7 @@ async function saveUserPlan() {
       </Button>
     </template>
 
-    <Alert v-if="notice">
-      <ShieldCheck class="size-4" />
-      <AlertTitle>操作が完了しました</AlertTitle>
-      <AlertDescription>{{ notice }}</AlertDescription>
-    </Alert>
-
-    <Alert v-if="errorMessage" variant="destructive">
-      <CircleAlert class="size-4" />
-      <AlertTitle>処理に失敗しました</AlertTitle>
-      <AlertDescription>{{ errorMessage }}</AlertDescription>
-    </Alert>
-
-    <div class="grid gap-6 xl:grid-cols-2">
+    <form class="grid gap-6 xl:grid-cols-2" @submit.prevent="save">
       <!-- ユーザー情報 -->
       <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
         <CardHeader class="gap-2">
@@ -137,43 +128,37 @@ async function saveUserPlan() {
           </CardTitle>
           <CardDescription>メールアドレス・ロール・パスワードを変更できます。</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form class="space-y-5" @submit.prevent="saveUserInfo">
-            <div class="space-y-2">
-              <Label for="email">メールアドレス</Label>
-              <Input id="email" v-model="userForm.email" type="email" required />
-            </div>
-            <div class="space-y-2">
-              <Label for="role">ロール</Label>
-              <Select v-model="userForm.role">
-                <SelectTrigger id="role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MEMBER">一般</SelectItem>
-                  <SelectItem value="ADMIN">管理者</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div class="flex items-center gap-3">
-              <Switch v-model:checked="userForm.enabled" />
-              <Label>アカウント有効</Label>
-            </div>
-            <div class="space-y-2">
-              <Label for="password">パスワード</Label>
-              <AppPasswordInput
-                id="password"
-                v-model="userForm.password"
-                autocomplete="new-password"
-                toggle-label="パスワード"
-                placeholder="変更しない場合は空欄"
-              />
-            </div>
-            <Button type="submit" :disabled="submitting">
-              <LoaderCircle v-if="submitting" class="size-4 animate-spin" />
-              保存する
-            </Button>
-          </form>
+        <CardContent class="space-y-5">
+          <div class="space-y-2">
+            <Label for="email">メールアドレス</Label>
+            <Input id="email" v-model="form.email" type="email" required />
+          </div>
+          <div class="space-y-2">
+            <Label for="role">ロール</Label>
+            <Select v-model="form.role">
+              <SelectTrigger id="role">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MEMBER">一般</SelectItem>
+                <SelectItem value="ADMIN">管理者</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="flex items-center gap-3">
+            <Switch v-model:checked="form.enabled" />
+            <Label>アカウント有効</Label>
+          </div>
+          <div class="space-y-2">
+            <Label for="password">パスワード</Label>
+            <AppPasswordInput
+              id="password"
+              v-model="form.password"
+              autocomplete="new-password"
+              toggle-label="パスワード"
+              placeholder="変更しない場合は空欄"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -185,35 +170,67 @@ async function saveUserPlan() {
           </CardTitle>
           <CardDescription>プラン・有効期限・自動更新を変更できます。</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form class="space-y-5" @submit.prevent="saveUserPlan">
-            <div class="space-y-2">
-              <Label for="plan">プラン</Label>
-              <Select v-model="planForm.plan">
-                <SelectTrigger id="plan">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FREE">Free</SelectItem>
-                  <SelectItem value="PRO">Pro</SelectItem>
-                </SelectContent>
-              </Select>
+        <CardContent class="space-y-5">
+          <div class="rounded-[1.5rem] border border-border/70 bg-muted/20 p-4 space-y-3">
+            <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              現在のステータス
+            </p>
+            <div class="flex flex-wrap gap-2 items-center">
+              <Badge :variant="form.plan === 'PRO' ? 'default' : 'secondary'">
+                {{ form.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
+              </Badge>
+              <template v-if="form.plan === 'PRO'">
+                <Badge v-if="form.planAutoRenew" variant="default" class="bg-green-600">
+                  自動更新 ON
+                </Badge>
+                <Badge v-else variant="outline">
+                  自動更新 OFF
+                </Badge>
+              </template>
             </div>
-            <div class="space-y-2">
-              <Label for="expires">有効期限</Label>
-              <Input id="expires" v-model="planForm.planExpiresAt" type="date" />
-            </div>
-            <div class="flex items-center gap-3">
-              <Switch v-model:checked="planForm.planAutoRenew" />
-              <Label>自動更新</Label>
-            </div>
-            <Button type="submit" :disabled="submitting">
-              <LoaderCircle v-if="submitting" class="size-4 animate-spin" />
-              保存する
-            </Button>
-          </form>
+            <p v-if="form.plan === 'PRO' && form.planAutoRenew" class="text-sm text-muted-foreground">
+              Stripeサブスクリプションにより自動で更新されます
+            </p>
+            <p v-else-if="form.plan === 'PRO' && form.planExpiresAt" class="text-sm text-muted-foreground">
+              有効期限: <span class="font-medium text-foreground">{{ form.planExpiresAt }}</span> まで
+            </p>
+            <p v-else-if="form.plan === 'PRO'" class="text-sm text-muted-foreground">
+              有効期限の設定なし
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <Label for="plan">プラン</Label>
+            <Select v-model="form.plan">
+              <SelectTrigger id="plan">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="FREE">Free</SelectItem>
+                <SelectItem value="PRO">Pro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="space-y-2">
+            <Label for="expires">有効期限</Label>
+            <Input id="expires" v-model="form.planExpiresAt" type="date" />
+          </div>
+          <div class="flex items-center gap-3">
+            <Switch v-model:checked="form.planAutoRenew" />
+            <Label>自動更新</Label>
+          </div>
         </CardContent>
       </Card>
-    </div>
+
+      <div class="xl:col-span-2 flex items-center justify-between">
+        <Button type="button" variant="ghost" class="text-xs text-muted-foreground" @click="resetStripeSubscription">
+          Stripeリセット（テスト用）
+        </Button>
+        <Button type="submit" :disabled="submitting">
+          <LoaderCircle v-if="submitting" class="size-4 animate-spin" />
+          保存する
+        </Button>
+      </div>
+    </form>
   </AppAuthenticatedShell>
 </template>

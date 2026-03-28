@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { CheckCircle2, CircleAlert, Info, Instagram, Link2, RefreshCcw } from 'lucide-vue-next'
+import { Info, Instagram, Link2, RefreshCcw } from 'lucide-vue-next'
+
+const { showSuccess: setNotice, showError: setError } = useSnackbar()
 import { formatDate } from '@/lib/replia-ui'
 
 definePageMeta({
@@ -20,8 +22,6 @@ type IgAccount = {
 
 const route = useRoute()
 const oauthConnectPath = '/api/ig-accounts/oauth/start'
-const notice = ref('')
-const errorMessage = ref('')
 const refreshing = ref(false)
 const isGuideDialogOpen = ref(false)
 
@@ -30,16 +30,6 @@ const accounts = computed<IgAccount[]>(() => accountsData.value?.accounts || [])
 const enabledAccountsCount = computed(() => accounts.value.filter((account) => account.enabled).length)
 const disabledAccountsCount = computed(() => accounts.value.filter((account) => !account.enabled).length)
 const latestUpdatedAt = computed(() => accounts.value[0]?.updatedAt || null)
-
-function setNotice(message: string) {
-  notice.value = message
-  errorMessage.value = ''
-}
-
-function setError(message: string) {
-  errorMessage.value = message
-  notice.value = ''
-}
 
 function getSingleQueryParam(value: string | string[] | undefined): string {
   if (typeof value === 'string') {
@@ -188,18 +178,6 @@ async function disconnectAccount(account: IgAccount) {
         </p>
       </div>
     </template>
-
-    <Alert v-if="notice">
-      <CheckCircle2 class="size-4" />
-      <AlertTitle>操作が完了しました</AlertTitle>
-      <AlertDescription>{{ notice }}</AlertDescription>
-    </Alert>
-
-    <Alert v-if="errorMessage" variant="destructive">
-      <CircleAlert class="size-4" />
-      <AlertTitle>処理に失敗しました</AlertTitle>
-      <AlertDescription>{{ errorMessage }}</AlertDescription>
-    </Alert>
 
     <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
       <CardHeader class="gap-2">
