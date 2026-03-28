@@ -6,7 +6,6 @@ type UserRole = 'ADMIN' | 'MEMBER'
 
 export type AuthUser = {
   id: string
-  tenantId: string
   email: string
   role: UserRole
 }
@@ -22,17 +21,17 @@ export async function getAuthUser(event: H3Event): Promise<AuthUser | null> {
     where: { id: session.userId },
     select: {
       id: true,
-      tenantId: true,
       email: true,
-      role: true
+      role: true,
+      enabled: true
     }
   })
 
-  if (!user || user.tenantId !== session.tenantId) {
+  if (!user || !user.enabled) {
     return null
   }
 
-  return user
+  return { id: user.id, email: user.email, role: user.role }
 }
 
 export async function requireAuth(event: H3Event): Promise<AuthUser> {

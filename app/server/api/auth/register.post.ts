@@ -1,25 +1,15 @@
 import { prisma } from '../../utils/prisma'
 import { hashPassword } from '../../utils/password'
 import { setSessionCookie } from '../../utils/session'
+import { sendVerificationEmail } from '../../utils/email'
 
 type RegisterBody = {
-  tenantName?: string
   email?: string
   password?: string
 }
 
 export default defineEventHandler(async (event) => {
-  const userCount = await prisma.user.count()
-
-  if (userCount > 0) {
-    throw createError({
-      statusCode: 403,
-      message: '新規登録は管理者機能から実施してください'
-    })
-  }
-
   const body = await readBody<RegisterBody>(event)
-  const tenantName = body.tenantName?.trim() || '初期テナント'
   const email = body.email?.trim().toLowerCase() || ''
   const password = body.password?.trim() || ''
 
@@ -30,6 +20,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw createError({
+      statusCode: 400,
+      message: '有効なメールアドレスを入力してください'
+    })
+  }
+
   if (!password || password.length < 8) {
     throw createError({
       statusCode: 400,
@@ -37,37 +34,61 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const user = await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({
-      data: {
-        name: tenantName
-      }
-    })
-
-    return tx.user.create({
-      data: {
-        tenantId: tenant.id,
-        email,
-        passwordHash: hashPassword(password),
-        role: 'ADMIN'
-      },
-      select: {
-        id: true,
-        tenantId: true,
-        email: true,
-        role: true
-      }
-    })
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true }
   })
 
-  setSessionCookie(event, {
-    userId: user.id,
-    tenantId: user.tenantId,
-    email: user.email
+  if (existing) {
+    throw createError({
+      statusCode: 409,
+      message: 'このメールアドレスは既に登録されています'
+    })
+  }
+
+  const userCount = await prisma.user.count()
+  const isFirstUser = userCount === 0
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: hashPassword(password),
+      role: isFirstUser ? 'ADMIN' : 'MEMBER',
+      emailVerified: isFirstUser
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true
+    }
   })
+
+  if (isFirstUser) {
+    setSessionCookie(event, {
+      userId: user.id,
+      email: user.email
+    })
+
+    return {
+      message: '初期管理者を登録しました',
+      user,
+      requiresVerification: false
+    }
+  }
+
+  const token = crypto.randomUUID()
+  await prisma.emailVerification.create({
+    data: {
+      userId: user.id,
+      token,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    }
+  })
+
+  await sendVerificationEmail(email, token)
 
   return {
-    message: '初期管理者を登録しました',
-    user
+    message: '確認メールを送信しました。メールに記載されたリンクをクリックして登録を完了してください。',
+    requiresVerification: true
   }
 })

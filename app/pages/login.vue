@@ -116,9 +116,9 @@ async function submit() {
 
           <Alert>
             <ShieldCheck class="size-4" />
-            <AlertTitle>ご利用案内</AlertTitle>
+            <AlertTitle>はじめての方へ</AlertTitle>
             <AlertDescription>
-              新規ユーザーを追加できるのは管理者ユーザーのみです。
+              無料でアカウントを作成し、Instagram ビジネスアカウントを連携してご利用ください。
             </AlertDescription>
           </Alert>
         </CardHeader>
@@ -137,7 +137,12 @@ async function submit() {
             </div>
 
             <div class="space-y-2">
-              <Label for="password">パスワード</Label>
+              <div class="flex items-center justify-between">
+                <Label for="password">パスワード</Label>
+                <NuxtLink class="text-xs font-medium text-primary hover:text-primary/80" to="/forgot-password">
+                  パスワードをお忘れの方
+                </NuxtLink>
+              </div>
               <AppPasswordInput
                 id="password"
                 v-model="password"
@@ -158,6 +163,13 @@ async function submit() {
               {{ loading ? '送信中...' : 'ログイン' }}
             </Button>
           </form>
+
+          <p class="text-center text-sm text-muted-foreground">
+            アカウントをお持ちでない方は
+            <NuxtLink class="font-medium text-primary hover:text-primary/80" to="/register">
+              新規登録
+            </NuxtLink>
+          </p>
         </CardContent>
 
         <CardFooter class="flex flex-wrap items-center gap-3 border-t bg-muted/25 px-6 py-5 text-sm text-muted-foreground sm:px-8">
@@ -170,6 +182,10 @@ async function submit() {
           </NuxtLink>
         </CardFooter>
       </Card>
+    </div>
+
+    <div class="mx-auto max-w-6xl">
+      <AppAdBanner />
     </div>
   </main>
 </template>

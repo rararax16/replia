@@ -21,7 +21,6 @@ export default defineEventHandler(async (event) => {
   const account = await prisma.igAccount.findFirst({
     where: {
       id,
-      tenantId: user.tenantId,
       userId: user.id
     },
     select: {

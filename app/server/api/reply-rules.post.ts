@@ -1,6 +1,7 @@
-import { EventChannel } from '@prisma/client'
+import { EventChannel, UserPlan } from '@prisma/client'
 import { requireAuth } from '../utils/auth'
 import { prisma } from '../utils/prisma'
+import { PLAN_LIMITS } from '../utils/plan-limits'
 
 type ReplyRuleBody = {
   channel?: string
@@ -34,9 +35,21 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: '返信内容を入力してください' })
   }
 
+  const [userInfo, ruleCount] = await Promise.all([
+    prisma.user.findUnique({ where: { id: user.id }, select: { plan: true } }),
+    prisma.replyRule.count({ where: { userId: user.id } })
+  ])
+
+  const ruleLimit = PLAN_LIMITS[userInfo?.plan ?? UserPlan.FREE].ruleLimit
+  if (ruleLimit !== null && ruleCount >= ruleLimit) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: `Freeプランでは返信ルールを${ruleLimit}件までしか登録できません。Proプランにアップグレードしてください。`
+    })
+  }
+
   const rule = await prisma.replyRule.create({
     data: {
-      tenantId: user.tenantId,
       userId: user.id,
       channel,
       keyword,

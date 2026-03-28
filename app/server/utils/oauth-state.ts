@@ -2,7 +2,6 @@ import { createHmac, randomUUID } from 'node:crypto'
 
 type OAuthStatePayload = {
   userId: string
-  tenantId: string
   nonce: string
   exp: number
 }
@@ -36,7 +35,7 @@ function decodePayload(encoded: string): OAuthStatePayload | null {
     const decoded = Buffer.from(encoded, 'base64url').toString('utf-8')
     const payload = JSON.parse(decoded) as OAuthStatePayload
 
-    if (!payload.userId || !payload.tenantId || !payload.nonce || !payload.exp) {
+    if (!payload.userId || !payload.nonce || !payload.exp) {
       return null
     }
 
@@ -47,10 +46,9 @@ function decodePayload(encoded: string): OAuthStatePayload | null {
   }
 }
 
-export function createInstagramOAuthState(userId: string, tenantId: string): string {
+export function createInstagramOAuthState(userId: string): string {
   const payload: OAuthStatePayload = {
     userId,
-    tenantId,
     nonce: randomUUID(),
     exp: Date.now() + OAUTH_STATE_TTL_SECONDS * 1000
   }

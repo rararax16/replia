@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, CircleUserRound, Instagram, LayoutDashboard, LogOut, MessageSquareText, Users } from 'lucide-vue-next'
+import { Activity, BellRing, CircleUserRound, Instagram, LayoutDashboard, LogOut, Megaphone, MessageSquare, MessageSquareText, Users } from 'lucide-vue-next'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<{
@@ -12,45 +12,56 @@ const authState = useAuthStateRef()
 const meData = computed(() => authState.value)
 const isAdmin = computed(() => meData.value?.user?.role === 'ADMIN')
 
-const navItems = computed(() => {
-  const items = [
-    {
-      label: 'ダッシュボード',
-      to: '/dashboard',
-      icon: LayoutDashboard
-    },
-    {
-      label: 'Instagram連携',
-      to: '/instagram',
-      icon: Instagram
-    },
-    {
-      label: '返信ルール',
-      to: '/reply-rules',
-      icon: MessageSquareText
-    },
-    {
-      label: '受信イベント',
-      to: '/events',
-      icon: Activity
-    },
-    {
-      label: 'マイページ',
-      to: '/my-page',
-      icon: CircleUserRound
-    }
-  ]
-
-  if (isAdmin.value) {
-    items.push({
-      label: 'ユーザーマスター',
-      to: '/users',
-      icon: Users
-    })
+const generalNavItems = [
+  {
+    label: 'ダッシュボード',
+    to: '/dashboard',
+    icon: LayoutDashboard
+  },
+  {
+    label: 'Instagram連携',
+    to: '/instagram',
+    icon: Instagram
+  },
+  {
+    label: '返信ルール',
+    to: '/reply-rules',
+    icon: MessageSquareText
+  },
+  {
+    label: '受信イベント',
+    to: '/events',
+    icon: Activity
+  },
+  {
+    label: 'コメントユーザー',
+    to: '/comment-users',
+    icon: MessageSquare
+  },
+  {
+    label: 'お知らせ',
+    to: '/announcements',
+    icon: BellRing
+  },
+  {
+    label: 'マイページ',
+    to: '/my-page',
+    icon: CircleUserRound
   }
+]
 
-  return items
-})
+const adminNavItems = [
+  {
+    label: 'ユーザーマスター',
+    to: '/users',
+    icon: Users
+  },
+  {
+    label: 'お知らせ管理',
+    to: '/admin/announcements',
+    icon: Megaphone
+  }
+]
 
 function isNavItemActive(path: string) {
   return route.path === path || route.path.startsWith(`${path}/`)
@@ -79,7 +90,7 @@ async function logout() {
 
               <div class="space-y-3 rounded-[1.5rem] border border-border/70 bg-muted/20 p-4">
                 <div class="flex flex-wrap items-center gap-2">
-                  <Badge class="rounded-full px-3 py-1">
+                  <Badge :variant="isAdmin ? 'destructive' : 'default'" class="rounded-full px-3 py-1">
                     {{ isAdmin ? 'システム管理者' : '一般ユーザー' }}
                   </Badge>
                 </div>
@@ -104,7 +115,7 @@ async function logout() {
 
             <nav class="flex flex-col gap-2">
               <NuxtLink
-                v-for="item in navItems"
+                v-for="item in generalNavItems"
                 :key="item.to"
                 :to="item.to"
                 :class="cn(
@@ -117,6 +128,28 @@ async function logout() {
                 <component :is="item.icon" class="size-4" />
                 {{ item.label }}
               </NuxtLink>
+
+              <template v-if="isAdmin">
+                <div class="flex items-center gap-2 px-1 pt-2">
+                  <Separator class="flex-1" />
+                  <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">管理者</span>
+                  <Separator class="flex-1" />
+                </div>
+                <NuxtLink
+                  v-for="item in adminNavItems"
+                  :key="item.to"
+                  :to="item.to"
+                  :class="cn(
+                    'inline-flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors',
+                    isNavItemActive(item.to)
+                      ? 'bg-primary text-primary-foreground shadow'
+                      : 'border border-transparent text-muted-foreground hover:border-border/70 hover:bg-muted/40 hover:text-foreground'
+                  )"
+                >
+                  <component :is="item.icon" class="size-4" />
+                  {{ item.label }}
+                </NuxtLink>
+              </template>
             </nav>
           </div>
         </section>

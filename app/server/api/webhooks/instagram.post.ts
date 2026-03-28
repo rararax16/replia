@@ -7,7 +7,6 @@ import { hasInboundSenderUsernameField } from '../../utils/prisma-features'
 import { verifyWebhookSignature } from '../../utils/webhook'
 
 type ParsedEvent = {
-  tenantId?: string
   userId?: string
   platformUserId?: string
   channel: EventChannel
@@ -36,7 +35,6 @@ function parseWebhookPayload(payload: any): ParsedEvent[] {
         : EventChannel.DM
 
       parsed.push({
-        tenantId: typeof event.tenantId === 'string' ? event.tenantId : undefined,
         userId: typeof event.userId === 'string' ? event.userId : undefined,
         platformUserId: typeof event.platformUserId === 'string' ? event.platformUserId : undefined,
         channel,
@@ -95,12 +93,9 @@ function parseWebhookPayload(payload: any): ParsedEvent[] {
   return parsed
 }
 
-async function resolveEventOwner(event: ParsedEvent): Promise<{ tenantId: string, userId: string } | null> {
-  if (event.tenantId && event.userId) {
-    return {
-      tenantId: event.tenantId,
-      userId: event.userId
-    }
+async function resolveEventOwner(event: ParsedEvent): Promise<{ userId: string } | null> {
+  if (event.userId) {
+    return { userId: event.userId }
   }
 
   if (!event.platformUserId) {
@@ -109,15 +104,9 @@ async function resolveEventOwner(event: ParsedEvent): Promise<{ tenantId: string
 
   const account = await prisma.igAccount.findFirst({
     where: {
-      platformUserId: event.platformUserId,
-      ...(event.tenantId
-        ? {
-            tenantId: event.tenantId
-          }
-        : {})
+      platformUserId: event.platformUserId
     },
     select: {
-      tenantId: true,
       userId: true
     }
   })
@@ -126,10 +115,7 @@ async function resolveEventOwner(event: ParsedEvent): Promise<{ tenantId: string
     return null
   }
 
-  return {
-    tenantId: account.tenantId,
-    userId: account.userId
-  }
+  return { userId: account.userId }
 }
 
 export default defineEventHandler(async (event) => {
@@ -177,7 +163,6 @@ export default defineEventHandler(async (event) => {
     let senderUsername = parsedEvent.senderUsername?.trim() || null
     if (!senderUsername) {
       senderUsername = await fetchInstagramSenderUsername({
-        tenantId: owner.tenantId,
         userId: owner.userId,
         senderId: parsedEvent.senderId,
         platformUserId: parsedEvent.platformUserId
@@ -186,8 +171,7 @@ export default defineEventHandler(async (event) => {
 
     const exists = await prisma.inboundEvent.findUnique({
       where: {
-        tenantId_userId_externalEventId: {
-          tenantId: owner.tenantId,
+        userId_externalEventId: {
           userId: owner.userId,
           externalEventId: parsedEvent.externalEventId
         }
@@ -202,7 +186,6 @@ export default defineEventHandler(async (event) => {
     }
 
     const inboundEventData: Record<string, unknown> = {
-      tenantId: owner.tenantId,
       userId: owner.userId,
       channel: parsedEvent.channel,
       externalEventId: parsedEvent.externalEventId,
@@ -219,7 +202,6 @@ export default defineEventHandler(async (event) => {
     })
 
     await processInboundEvent({
-      tenantId: owner.tenantId,
       userId: owner.userId,
       inboundEventId: inboundEvent.id,
       channel: parsedEvent.channel,

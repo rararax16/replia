@@ -1,9 +1,9 @@
-import { EventChannel, ReplyStatus } from '@prisma/client'
+import { EventChannel, ReplyStatus, UserPlan } from '@prisma/client'
 import { prisma } from './prisma'
 import { sendInstagramReply } from '../services/instagram.service'
+import { PLAN_LIMITS } from './plan-limits'
 
 export type ProcessInboundEventInput = {
-  tenantId: string
   userId: string
   inboundEventId: string
   channel: EventChannel
@@ -18,7 +18,6 @@ function normalizeText(text: string): string {
 export async function processInboundEvent(input: ProcessInboundEventInput) {
   const rules = await prisma.replyRule.findMany({
     where: {
-      tenantId: input.tenantId,
       userId: input.userId,
       channel: input.channel,
       isActive: true
@@ -37,12 +36,36 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
   if (!matchedRule) {
     return prisma.outboundReply.create({
       data: {
-        tenantId: input.tenantId,
         userId: input.userId,
         inboundEventId: input.inboundEventId,
         replyText: '',
         status: ReplyStatus.SKIPPED,
         errorMessage: '一致する返信ルールがありませんでした'
+      }
+    })
+  }
+
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const [user, repliesSentThisMonth] = await Promise.all([
+    prisma.user.findUnique({ where: { id: input.userId }, select: { plan: true } }),
+    prisma.outboundReply.count({
+      where: { userId: input.userId, status: ReplyStatus.SENT, createdAt: { gte: startOfMonth } }
+    })
+  ])
+
+  const plan = user?.plan ?? UserPlan.FREE
+  const limit = PLAN_LIMITS[plan].replyLimit
+
+  if (repliesSentThisMonth >= limit) {
+    return prisma.outboundReply.create({
+      data: {
+        userId: input.userId,
+        inboundEventId: input.inboundEventId,
+        replyText: matchedRule.replyText,
+        status: ReplyStatus.SKIPPED,
+        errorMessage: `月間自動返信の上限（${limit}件）に達しました。${plan === UserPlan.FREE ? 'Proプランにアップグレードすると3,000件まで送れます。' : ''}`
       }
     })
   }
@@ -57,7 +80,6 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
 
   const account = await prisma.igAccount.findFirst({
     where: {
-      tenantId: input.tenantId,
       userId: input.userId,
       enabled: true
     },
@@ -69,7 +91,6 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
   if (!account) {
     return prisma.outboundReply.create({
       data: {
-        tenantId: input.tenantId,
         userId: input.userId,
         inboundEventId: input.inboundEventId,
         replyText: matchedRule.replyText,
@@ -80,7 +101,6 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
   }
 
   const sendResult = await sendInstagramReply({
-    tenantId: input.tenantId,
     userId: input.userId,
     platformUserId: account.platformUserId,
     recipientId: input.senderId,
@@ -95,7 +115,6 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
 
   return prisma.outboundReply.create({
     data: {
-      tenantId: input.tenantId,
       userId: input.userId,
       inboundEventId: input.inboundEventId,
       replyText: matchedRule.replyText,

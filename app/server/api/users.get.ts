@@ -12,6 +12,10 @@ export default defineEventHandler(async (event) => {
       id: true,
       email: true,
       role: true,
+      plan: true,
+      planExpiresAt: true,
+      planAutoRenew: true,
+      enabled: true,
       createdAt: true,
       updatedAt: true
     }

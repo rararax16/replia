@@ -2,7 +2,6 @@ import { decryptText } from '../utils/crypto'
 import { prisma } from '../utils/prisma'
 
 export type SendInstagramReplyInput = {
-  tenantId: string
   userId: string
   platformUserId: string
   recipientId: string
@@ -19,7 +18,6 @@ export type SendInstagramReplyResult = {
 }
 
 export type FetchInstagramSenderUsernameInput = {
-  tenantId: string
   userId: string
   senderId: string
   platformUserId?: string
@@ -75,13 +73,12 @@ function normalizeUsername(username: string | undefined): string | null {
   return normalized || null
 }
 
-async function getAccountAccessToken(tenantId: string, userId: string, platformUserId: string): Promise<{
+async function getAccountAccessToken(userId: string, platformUserId: string): Promise<{
   accessToken: string | null
   message?: string
 }> {
   const account = await prisma.igAccount.findFirst({
     where: {
-      tenantId,
       userId,
       platformUserId,
       enabled: true
@@ -206,7 +203,6 @@ export async function fetchInstagramSenderUsername(
 
   const accounts = await prisma.igAccount.findMany({
     where: {
-      tenantId: input.tenantId,
       userId: input.userId,
       enabled: true
     },
@@ -356,7 +352,7 @@ export async function sendInstagramReply(input: SendInstagramReplyInput): Promis
     }
   }
 
-  const tokenResult = await getAccountAccessToken(input.tenantId, input.userId, input.platformUserId)
+  const tokenResult = await getAccountAccessToken(input.userId, input.platformUserId)
   if (!tokenResult.accessToken) {
     return {
       success: false,

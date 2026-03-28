@@ -4,5 +4,6 @@
     <div class="pointer-events-none fixed inset-x-0 top-[-8rem] -z-10 h-72 bg-[radial-gradient(circle,rgba(15,23,42,0.08),transparent_62%)] blur-3xl" />
     <NuxtLoadingIndicator color="hsl(var(--primary))" :height="3" />
     <NuxtPage />
+    <AppSnackbar />
   </div>
 </template>

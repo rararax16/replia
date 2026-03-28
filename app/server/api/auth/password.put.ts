@@ -30,8 +30,7 @@ export default defineEventHandler(async (event) => {
 
   const user = await prisma.user.findFirst({
     where: {
-      id: authUser.id,
-      tenantId: authUser.tenantId
+      id: authUser.id
     },
     select: {
       id: true,

@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { CircleAlert, KeyRound, LoaderCircle, LockKeyhole, ShieldCheck } from 'lucide-vue-next'
+import { CheckCircle2, KeyRound, LoaderCircle, LockKeyhole, Zap } from 'lucide-vue-next'
+import { formatDate } from '@/lib/replia-ui'
+
+const { showSuccess: setNotice, showError: setError } = useSnackbar()
 
 definePageMeta({
   middleware: 'auth'
@@ -13,25 +16,62 @@ const authState = await ensureAuthState()
 const meData = computed(() => authState.value)
 const roleLabel = computed(() => meData.value?.user?.role === 'ADMIN' ? 'システム管理者' : '一般ユーザー')
 
-const notice = ref('')
-const errorMessage = ref('')
+type BillingInfo = {
+  plan: 'FREE' | 'PRO'
+  replyLimit: number
+  replyUsedThisMonth: number
+  planAutoRenew: boolean
+  planExpiresAt: string | null
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+}
+
+const { data: billingData, refresh: refreshBilling } = useFetch('/api/billing')
+const billing = computed<BillingInfo>(() => billingData.value as BillingInfo ?? { plan: 'FREE', replyLimit: 100, replyUsedThisMonth: 0, planAutoRenew: false, planExpiresAt: null, stripeCustomerId: null, stripeSubscriptionId: null })
+const dmUsagePercent = computed(() => Math.min(100, Math.round((billing.value.replyUsedThisMonth / billing.value.replyLimit) * 100)))
+
+const freeFeatures = [
+  'Instagramアカウント 1件',
+  'キーワード返信ルール 5件まで設定可',
+  '月100件まで自動返信（DM・コメント合計）',
+  'コメント → DM自動送信',
+  'コメントユーザー一覧'
+]
+
+const route = useRoute()
+const router = useRouter()
+
 const submitting = ref(false)
+const billingLoading = ref(false)
+
+onMounted(async () => {
+  if (route.query.checkout === 'success') {
+    await refreshBilling()
+    setNotice('Proプランへのアップグレードが完了しました。')
+    router.replace({ query: {} })
+  }
+})
+
+
+async function openPortal() {
+  billingLoading.value = true
+  try {
+    const res = await $fetch<{ data: { url: string } }>('/api/billing/portal', { method: 'POST' })
+    if (res.data.url) window.location.href = res.data.url
+  }
+  catch (error: any) {
+    setError(error?.data?.message || error?.data?.statusMessage || 'ポータルの開始に失敗しました')
+  }
+  finally {
+    billingLoading.value = false
+  }
+}
 
 const form = reactive({
   currentPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
-
-function setNotice(message: string) {
-  notice.value = message
-  errorMessage.value = ''
-}
-
-function setError(message: string) {
-  errorMessage.value = message
-  notice.value = ''
-}
 
 function resetForm() {
   form.currentPassword = ''
@@ -71,7 +111,7 @@ async function updatePassword() {
 <template>
   <AppAuthenticatedShell
     title="マイページ"
-    description="ログイン中のアカウント情報の確認と、自分のパスワード変更を行います。"
+    description="アカウント情報の確認・パスワード変更・プランの確認を行います。"
   >
     <template #badges>
       <Badge variant="secondary" class="rounded-full px-3 py-1">
@@ -100,25 +140,16 @@ async function updatePassword() {
 
       <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
         <p class="text-sm font-medium text-muted-foreground">
-          セキュリティ
+          ご利用中のプラン
         </p>
-        <p class="mt-2 text-base font-medium text-foreground">
-          新しいパスワードは8文字以上で設定してください
+        <p class="mt-2 text-2xl font-bold tracking-tight text-foreground">
+          {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
+        </p>
+        <p v-if="billing.plan === 'PRO' && !billing.planAutoRenew && billing.planExpiresAt" class="mt-2 text-sm text-amber-700">
+          {{ formatDate(billing.planExpiresAt) }} に終了
         </p>
       </div>
     </template>
-
-    <Alert v-if="notice">
-      <ShieldCheck class="size-4" />
-      <AlertTitle>変更が完了しました</AlertTitle>
-      <AlertDescription>{{ notice }}</AlertDescription>
-    </Alert>
-
-    <Alert v-if="errorMessage" variant="destructive">
-      <CircleAlert class="size-4" />
-      <AlertTitle>処理に失敗しました</AlertTitle>
-      <AlertDescription>{{ errorMessage }}</AlertDescription>
-    </Alert>
 
     <div class="grid gap-6 xl:grid-cols-[340px_1fr]">
       <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
@@ -224,6 +255,112 @@ async function updatePassword() {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+    </div>
+
+    <!-- DM送信状況 -->
+    <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+      <CardHeader class="gap-2">
+        <CardTitle class="text-2xl">
+          今月の自動返信状況
+        </CardTitle>
+        <CardDescription class="leading-6">
+          毎月1日にリセットされます。
+        </CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <div class="flex items-end justify-between">
+          <p class="text-4xl font-bold text-foreground">
+            {{ billing.replyUsedThisMonth }}
+            <span class="text-lg font-normal text-muted-foreground">/ {{ billing.replyLimit }} 件</span>
+          </p>
+          <div class="text-right">
+            <Badge :variant="billing.plan === 'PRO' ? 'default' : 'secondary'" class="text-sm">
+              {{ billing.plan === 'PRO' ? 'Proプラン' : 'Freeプラン' }}
+            </Badge>
+            <p v-if="billing.plan === 'PRO' && !billing.planAutoRenew && billing.planExpiresAt" class="mt-1 text-xs text-amber-700">
+              {{ formatDate(billing.planExpiresAt) }} に終了
+            </p>
+          </div>
+        </div>
+        <div class="h-3 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            class="h-full rounded-full transition-all"
+            :class="dmUsagePercent >= 100 ? 'bg-destructive' : dmUsagePercent >= 80 ? 'bg-amber-500' : 'bg-primary'"
+            :style="{ width: `${dmUsagePercent}%` }"
+          />
+        </div>
+        <p v-if="dmUsagePercent >= 100 && billing.plan === 'FREE'" class="text-sm font-medium text-destructive">
+          月間自動返信の上限に達しました。Proプランにアップグレードすると3,000件まで送れます。
+        </p>
+        <p v-else-if="dmUsagePercent >= 80 && billing.plan === 'FREE'" class="text-sm text-amber-700">
+          自動返信上限の{{ dmUsagePercent }}%に達しています。
+        </p>
+      </CardContent>
+    </Card>
+
+    <!-- プラン比較 -->
+    <div class="grid gap-6 md:grid-cols-2">
+      <Card
+        class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur"
+        :class="billing.plan === 'FREE' ? 'ring-2 ring-primary' : ''"
+      >
+        <CardHeader class="gap-2">
+          <div class="flex items-center justify-between">
+            <CardTitle class="text-xl">
+              Freeプラン
+            </CardTitle>
+            <Badge v-if="billing.plan === 'FREE'" variant="default">
+              ご利用中
+            </Badge>
+          </div>
+          <p class="text-3xl font-bold text-foreground">
+            ¥0
+            <span class="text-base font-normal text-muted-foreground">/ 月</span>
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ul class="space-y-2">
+            <li
+              v-for="feature in freeFeatures"
+              :key="feature"
+              class="flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <CheckCircle2 class="size-4 shrink-0 text-muted-foreground/60" />
+              {{ feature }}
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card
+        class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur"
+        :class="billing.plan === 'PRO' ? 'ring-2 ring-primary' : ''"
+      >
+        <CardHeader class="gap-2">
+          <div class="flex items-center justify-between">
+            <CardTitle class="text-xl">
+              Proプラン
+            </CardTitle>
+            <Badge v-if="billing.plan === 'PRO'" variant="default">
+              ご利用中
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div v-if="billing.plan === 'PRO' && billing.stripeCustomerId">
+            <Button variant="outline" class="w-full" :disabled="billingLoading" @click="openPortal">
+              <LoaderCircle v-if="billingLoading" class="size-4 animate-spin" />
+              お支払い・プラン管理
+            </Button>
+          </div>
+          <div v-else>
+            <Button class="w-full" disabled>
+              <Zap class="size-4" />
+              Coming Soon...
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

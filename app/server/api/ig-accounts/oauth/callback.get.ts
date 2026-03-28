@@ -47,12 +47,11 @@ export default defineEventHandler(async (event) => {
       id: statePayload.userId
     },
     select: {
-      id: true,
-      tenantId: true
+      id: true
     }
   })
 
-  if (!user || user.tenantId !== statePayload.tenantId) {
+  if (!user) {
     return redirectWithError(event, 'ユーザー情報の確認に失敗しました')
   }
 
@@ -69,23 +68,15 @@ export default defineEventHandler(async (event) => {
       for (const account of accounts) {
         const existing = await tx.igAccount.findUnique({
           where: {
-            tenantId_platformUserId: {
-              tenantId: user.tenantId,
+            userId_platformUserId: {
+              userId: user.id,
               platformUserId: account.instagramUserId
             }
           },
           select: {
-            id: true,
-            userId: true
+            id: true
           }
         })
-
-        if (existing && existing.userId !== user.id) {
-          throw createError({
-            statusCode: 409,
-            statusMessage: `@${account.instagramUsername} は別ユーザーに連携されています`
-          })
-        }
 
         if (existing) {
           await tx.igAccount.update({
@@ -101,9 +92,21 @@ export default defineEventHandler(async (event) => {
           continue
         }
 
+        // 他のユーザーが同じIGアカウントを連携済みか確認
+        const globalExisting = await tx.igAccount.findFirst({
+          where: {
+            platformUserId: account.instagramUserId,
+            userId: { not: user.id }
+          },
+          select: { id: true }
+        })
+
+        if (globalExisting) {
+          throw new Error('IG_ALREADY_LINKED')
+        }
+
         await tx.igAccount.create({
           data: {
-            tenantId: user.tenantId,
             userId: user.id,
             platformUserId: account.instagramUserId,
             username: account.instagramUsername,
@@ -117,6 +120,9 @@ export default defineEventHandler(async (event) => {
     return sendRedirect(event, `/instagram?ig_connected=${accounts.length}`)
   }
   catch (error: any) {
+    if (error?.message === 'IG_ALREADY_LINKED') {
+      return redirectWithError(event, 'このInstagramアカウントは既に別のユーザーに連携されています')
+    }
     const message = error?.statusMessage || error?.message || 'Instagram連携処理に失敗しました'
     return redirectWithError(event, message)
   }

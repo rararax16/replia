@@ -5,7 +5,6 @@ export const SESSION_COOKIE_NAME = 'insta_session'
 
 export type SessionPayload = {
   userId: string
-  tenantId: string
   email: string
   exp: number
 }
@@ -39,7 +38,7 @@ function decodePayload(value: string): SessionPayload | null {
     const decoded = Buffer.from(value, 'base64url').toString('utf-8')
     const parsed = JSON.parse(decoded) as SessionPayload
 
-    if (!parsed.userId || !parsed.tenantId || !parsed.email || !parsed.exp) {
+    if (!parsed.userId || !parsed.email || !parsed.exp) {
       return null
     }
 
