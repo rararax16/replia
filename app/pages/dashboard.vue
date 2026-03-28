@@ -307,9 +307,10 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
         <div class="flex flex-col gap-4 rounded-[1.5rem] border border-border/70 bg-muted/20 p-5 lg:flex-row lg:items-center lg:justify-between">
           <label class="flex items-start gap-3 text-sm leading-6 text-foreground">
             <input
-              v-model="hideGuide"
               type="checkbox"
+              :checked="hideGuide"
               class="mt-1 size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+              @change="hideGuide = ($event.target as HTMLInputElement).checked"
             >
             <span>今後表示しない</span>
           </label>
