@@ -47,6 +47,7 @@ model User {
   replyRules      ReplyRule[]
   inboundEvents   InboundEvent[]
   outboundReplies OutboundReply[]
+  announcements   Announcement[]
 
   @@map("users")
 }
@@ -114,4 +115,19 @@ model OutboundReply {
 
   @@index([userId, status, createdAt])
   @@map("outbound_replies")
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String   @db.Text
+  publishAt   DateTime @map("publish_at")
+  isVisible   Boolean  @default(true) @map("is_visible")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([isVisible, publishAt])
+  @@map("announcements")
 }

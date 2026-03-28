@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, CircleUserRound, Instagram, LayoutDashboard, LogOut, MessageSquare, MessageSquareText, Users } from 'lucide-vue-next'
+import { Activity, BellRing, CircleUserRound, Instagram, LayoutDashboard, LogOut, Megaphone, MessageSquare, MessageSquareText, Users } from 'lucide-vue-next'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<{
@@ -39,6 +39,11 @@ const generalNavItems = [
     icon: MessageSquare
   },
   {
+    label: 'お知らせ',
+    to: '/announcements',
+    icon: BellRing
+  },
+  {
     label: 'マイページ',
     to: '/my-page',
     icon: CircleUserRound
@@ -50,6 +55,11 @@ const adminNavItems = [
     label: 'ユーザーマスター',
     to: '/users',
     icon: Users
+  },
+  {
+    label: 'お知らせ管理',
+    to: '/admin/announcements',
+    icon: Megaphone
   }
 ]
 

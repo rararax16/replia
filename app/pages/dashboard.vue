@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { EventChannel, ReplyStatus } from '@prisma/client'
-import { Activity, BellRing, CheckCircle2, CircleAlert, Instagram, MessageSquareText, RefreshCcw, Users } from 'lucide-vue-next'
+import { Activity, BellRing, CheckCircle2, CircleAlert, Instagram, Megaphone, MessageSquareText, RefreshCcw, Users } from 'lucide-vue-next'
 const { showSuccess: setNotice, showError: setError } = useSnackbar()
 import { cn } from '@/lib/utils'
 import { instagramSetupSteps } from '@/lib/instagram-setup-guide'
@@ -72,6 +72,15 @@ const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
 const { data: eventsData, refresh: refreshEvents } = useFetch('/api/inbound-events')
 const { data: accountsData, refresh: refreshAccounts } = useFetch('/api/ig-accounts')
 const { data: billingData, refresh: refreshBilling } = useFetch('/api/billing')
+const { data: announcementsData, refresh: refreshAnnouncements } = useFetch('/api/announcements', { default: () => ({ announcements: [] }) })
+
+type AnnouncementItem = {
+  id: string
+  title: string
+  body: string
+  publishAt: string
+}
+const latestAnnouncements = computed<AnnouncementItem[]>(() => ((announcementsData.value as any)?.announcements ?? []).slice(0, 3))
 
 const rules = computed<ReplyRule[]>(() => rulesData.value?.rules || [])
 const events = computed<InboundEvent[]>(() => eventsData.value?.events || [])
@@ -212,7 +221,8 @@ async function refreshAll() {
       refreshAccounts(),
       refreshRules(),
       refreshEvents(),
-      refreshBilling()
+      refreshBilling(),
+      refreshAnnouncements()
     ])
     setNotice('最近の通知を更新しました')
   }
@@ -315,6 +325,45 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
             </Button>
           </div>
         </div>
+      </CardContent>
+    </Card>
+
+    <Card v-if="latestAnnouncements.length > 0" class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+      <CardHeader class="gap-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Megaphone class="size-5" />
+            </div>
+            <CardTitle class="text-2xl">
+              お知らせ
+            </CardTitle>
+          </div>
+          <Button as-child size="sm" variant="outline">
+            <NuxtLink to="/announcements">
+              すべて見る
+            </NuxtLink>
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <article
+          v-for="item in latestAnnouncements"
+          :key="item.id"
+          class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="font-semibold text-foreground">
+              {{ item.title }}
+            </h3>
+            <p class="text-xs text-muted-foreground">
+              {{ formatDate(item.publishAt) }}
+            </p>
+          </div>
+          <p class="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+            {{ item.body }}
+          </p>
+        </article>
       </CardContent>
     </Card>
 
