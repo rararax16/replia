@@ -33,6 +33,9 @@
   "engines": {
     "node": "22.x"
   },
+  "overrides": {
+    "oxc-parser": "0.112.0"
+  },
   "devDependencies": {
     "@types/node": "^25.2.2",
     "autoprefixer": "^10.4.27",
