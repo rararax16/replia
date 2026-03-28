@@ -66,7 +66,8 @@ export default defineEventHandler(async (event) => {
     data: {
       email,
       passwordHash: hashPassword(password),
-      role
+      role,
+      emailVerified: true
     },
     select: {
       id: true,

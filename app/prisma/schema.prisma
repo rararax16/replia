@@ -38,6 +38,7 @@ model User {
   plan                 UserPlan  @default(FREE)
   planExpiresAt        DateTime? @map("plan_expires_at")
   planAutoRenew        Boolean   @default(false) @map("plan_auto_renew")
+  emailVerified        Boolean   @default(false) @map("email_verified")
   enabled              Boolean   @default(true)
   stripeCustomerId     String?   @unique @map("stripe_customer_id")
   stripeSubscriptionId String?   @unique @map("stripe_subscription_id")
@@ -48,6 +49,7 @@ model User {
   inboundEvents   InboundEvent[]
   outboundReplies OutboundReply[]
   announcements   Announcement[]
+  emailVerifications EmailVerification[]
 
   @@map("users")
 }
@@ -55,7 +57,7 @@ model User {
 model IgAccount {
   id                   String   @id @default(cuid())
   userId               String   @map("user_id")
-  platformUserId       String   @map("platform_user_id")
+  platformUserId       String   @unique @map("platform_user_id")
   username             String
   accessTokenEncrypted String   @map("access_token_encrypted")
   enabled              Boolean  @default(true)
@@ -130,4 +132,16 @@ model Announcement {
 
   @@index([isVisible, publishAt])
   @@map("announcements")
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verifications")
 }

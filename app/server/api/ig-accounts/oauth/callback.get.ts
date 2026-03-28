@@ -92,6 +92,19 @@ export default defineEventHandler(async (event) => {
           continue
         }
 
+        // 他のユーザーが同じIGアカウントを連携済みか確認
+        const globalExisting = await tx.igAccount.findFirst({
+          where: {
+            platformUserId: account.instagramUserId,
+            userId: { not: user.id }
+          },
+          select: { id: true }
+        })
+
+        if (globalExisting) {
+          throw new Error('IG_ALREADY_LINKED')
+        }
+
         await tx.igAccount.create({
           data: {
             userId: user.id,
@@ -107,6 +120,9 @@ export default defineEventHandler(async (event) => {
     return sendRedirect(event, `/instagram?ig_connected=${accounts.length}`)
   }
   catch (error: any) {
+    if (error?.message === 'IG_ALREADY_LINKED') {
+      return redirectWithError(event, 'このInstagramアカウントは既に別のユーザーに連携されています')
+    }
     const message = error?.statusMessage || error?.message || 'Instagram連携処理に失敗しました'
     return redirectWithError(event, message)
   }

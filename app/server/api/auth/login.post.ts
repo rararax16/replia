@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
       email: true,
       role: true,
       passwordHash: true,
+      emailVerified: true,
       enabled: true
     }
   })
@@ -33,6 +34,10 @@ export default defineEventHandler(async (event) => {
 
   if (!user.enabled) {
     throw createError({ statusCode: 403, statusMessage: 'このアカウントは無効化されています。管理者にお問い合わせください。' })
+  }
+
+  if (!user.emailVerified) {
+    throw createError({ statusCode: 403, statusMessage: 'メールアドレスの認証が完了していません。受信トレイをご確認ください。' })
   }
 
   setSessionCookie(event, {
