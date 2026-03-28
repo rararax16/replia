@@ -96,5 +96,15 @@ async function refreshPage() {
         </article>
       </CardContent>
     </Card>
+
+    <div class="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
+      <NuxtLink class="font-medium text-primary hover:text-primary/80" to="/privacy">
+        プライバシーポリシー
+      </NuxtLink>
+      <span class="text-border">/</span>
+      <NuxtLink class="font-medium text-primary hover:text-primary/80" to="/terms">
+        利用規約
+      </NuxtLink>
+    </div>
   </AppAuthenticatedShell>
 </template>

@@ -95,10 +95,8 @@ const sections = [
     </section>
 
     <template #actions>
-      <Button as-child variant="outline">
-        <NuxtLink to="/login">
-          ログイン画面へ戻る
-        </NuxtLink>
+      <Button variant="outline" @click="$router.back()">
+        戻る
       </Button>
       <Button as-child variant="ghost">
         <NuxtLink to="/privacy">
