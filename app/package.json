@@ -34,7 +34,8 @@
     "node": "22.x"
   },
   "overrides": {
-    "oxc-parser": "0.112.0"
+    "oxc-parser": "0.112.0",
+    "@oxc-parser/binding-linux-x64-gnu": "0.112.0"
   },
   "devDependencies": {
     "@types/node": "^25.2.2",
