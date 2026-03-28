@@ -1,11 +1,7 @@
 import { EventChannel, ReplyStatus, UserPlan } from '@prisma/client'
 import { prisma } from './prisma'
 import { sendInstagramReply } from '../services/instagram.service'
-
-const REPLY_LIMIT: Record<UserPlan, number> = {
-  FREE: 20,
-  PRO: 3000
-}
+import { PLAN_LIMITS } from './plan-limits'
 
 export type ProcessInboundEventInput = {
   userId: string
@@ -60,7 +56,7 @@ export async function processInboundEvent(input: ProcessInboundEventInput) {
   ])
 
   const plan = user?.plan ?? UserPlan.FREE
-  const limit = REPLY_LIMIT[plan]
+  const limit = PLAN_LIMITS[plan].replyLimit
 
   if (repliesSentThisMonth >= limit) {
     return prisma.outboundReply.create({

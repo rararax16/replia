@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ExternalLink, MessageSquare, RefreshCcw, Users, Zap } from 'lucide-vue-next'
+import { ExternalLink, MessageSquare, RefreshCcw, Users } from 'lucide-vue-next'
 import { formatDate, getInstagramProfileUrl } from '@/lib/replia-ui'
 
 definePageMeta({
@@ -19,8 +19,6 @@ type CommentUser = {
 }
 
 const refreshing = ref(false)
-const { data: billingData } = useFetch('/api/billing')
-const isPro = computed(() => (billingData.value as any)?.plan === 'PRO')
 const { data, refresh } = useFetch('/api/comment-users', { default: () => ({ commentUsers: [] }) })
 const commentUsers = computed<CommentUser[]>(() => (data.value as any)?.commentUsers ?? [])
 
@@ -90,31 +88,7 @@ async function refreshPage() {
       </Button>
     </template>
 
-    <!-- Freeプランゲート -->
-    <Card v-if="!isPro" class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
-      <CardContent class="flex flex-col items-center gap-4 py-12 text-center">
-        <div class="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Zap class="size-7" />
-        </div>
-        <div class="space-y-2">
-          <p class="text-xl font-bold text-foreground">
-            Proプランの機能です
-          </p>
-          <p class="text-sm text-muted-foreground">
-            コメントユーザー一覧はProプランでご利用いただけます。
-          </p>
-        </div>
-        <a
-          href="mailto:support@replia.jp"
-          class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          <Zap class="size-4" />
-          Proプランにアップグレード
-        </a>
-      </CardContent>
-    </Card>
-
-    <Card v-else class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
+    <Card class="border-white/70 bg-white/85 shadow-[0_30px_90px_-48px_rgba(15,23,42,0.35)] backdrop-blur">
       <CardHeader class="gap-2">
         <CardTitle class="text-2xl">
           コメントユーザー一覧
