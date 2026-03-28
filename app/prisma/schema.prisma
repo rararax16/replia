@@ -35,11 +35,13 @@ model User {
   email           String          @unique
   passwordHash    String          @map("password_hash")
   role            UserRole        @default(MEMBER)
-  plan            UserPlan      @default(FREE)
-  planExpiresAt   DateTime?       @map("plan_expires_at")
-  planAutoRenew   Boolean         @default(false) @map("plan_auto_renew")
-  enabled         Boolean         @default(true)
-  createdAt       DateTime        @default(now()) @map("created_at")
+  plan                 UserPlan  @default(FREE)
+  planExpiresAt        DateTime? @map("plan_expires_at")
+  planAutoRenew        Boolean   @default(false) @map("plan_auto_renew")
+  enabled              Boolean   @default(true)
+  stripeCustomerId     String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?   @unique @map("stripe_subscription_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
   igAccounts      IgAccount[]
   replyRules      ReplyRule[]

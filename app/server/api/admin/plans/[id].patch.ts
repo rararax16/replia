@@ -6,6 +6,7 @@ type PatchBody = {
   plan?: string
   planExpiresAt?: string | null
   planAutoRenew?: boolean
+  resetStripeSubscription?: boolean
 }
 
 export default defineEventHandler(async (event) => {
@@ -22,6 +23,7 @@ export default defineEventHandler(async (event) => {
     plan?: UserPlan
     planExpiresAt?: Date | null
     planAutoRenew?: boolean
+    stripeSubscriptionId?: null
   } = {}
 
   if (body.plan !== undefined) {
@@ -37,6 +39,10 @@ export default defineEventHandler(async (event) => {
 
   if (body.planAutoRenew !== undefined) {
     data.planAutoRenew = body.planAutoRenew
+  }
+
+  if (body.resetStripeSubscription) {
+    data.stripeSubscriptionId = null
   }
 
   const user = await prisma.user.update({

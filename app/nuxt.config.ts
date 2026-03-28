@@ -30,7 +30,10 @@ export default defineNuxtConfig({
     metaWebhookVerifyToken: process.env.META_WEBHOOK_VERIFY_TOKEN,
     metaApiVersion: process.env.META_API_VERSION || 'v24.0',
     metaOauthScopes: process.env.META_OAUTH_SCOPES ||
-      'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments'
+      'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments',
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    stripeProPriceId: process.env.STRIPE_PRO_PRICE_ID
   },
 
   modules: ['@nuxtjs/tailwindcss', 'shadcn-nuxt'],

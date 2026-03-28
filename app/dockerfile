@@ -1,5 +1,16 @@
 FROM node:22
 
+# Stripe CLI
+RUN apt-get update -qq \
+  && apt-get install -y --no-install-recommends curl gnupg \
+  && curl -s https://packages.stripe.dev/api/security/keypair/stripe-cli-gpg/public \
+     | gpg --dearmor | tee /usr/share/keyrings/stripe.gpg > /dev/null \
+  && echo "deb [signed-by=/usr/share/keyrings/stripe.gpg] https://packages.stripe.dev/stripe-cli-debian-local stable main" \
+     | tee /etc/apt/sources.list.d/stripe.list \
+  && apt-get update -qq \
+  && apt-get install -y --no-install-recommends stripe \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 ARG BUILD_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/app_db?schema=public
