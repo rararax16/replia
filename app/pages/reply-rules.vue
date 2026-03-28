@@ -29,7 +29,7 @@ const editingRuleId = ref<string | null>(null)
 
 const FREE_RULE_LIMIT = 5
 
-const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
+const { data: rulesData, refresh: refreshRules, status: rulesStatus } = useFetch('/api/reply-rules')
 const { data: billingData } = useFetch('/api/billing')
 const rules = computed<ReplyRule[]>(() => rulesData.value?.rules || [])
 const activeRulesCount = computed(() => rules.value.filter((rule) => rule.isActive).length)
@@ -37,6 +37,7 @@ const dmRulesCount = computed(() => rules.value.filter((rule) => rule.channel ==
 const commentRulesCount = computed(() => rules.value.filter((rule) => rule.channel === 'COMMENT').length)
 const currentPlan = computed(() => (billingData.value as any)?.plan ?? 'FREE')
 const isAtRuleLimit = computed(() => currentPlan.value === 'FREE' && rules.value.length >= FREE_RULE_LIMIT)
+const isLoading = computed(() => rulesStatus.value === 'pending')
 
 const ruleForm = reactive({
   channel: 'DM' as EventChannel,
@@ -167,7 +168,10 @@ function updateRulePriority(value: string | number) {
             <p class="text-sm font-medium text-muted-foreground">
               総ルール数
             </p>
-            <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            <template v-if="isLoading">
+              <Skeleton class="mt-2 h-9 w-20" />
+            </template>
+            <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
               {{ rules.length }}件
             </p>
           </div>
@@ -181,24 +185,36 @@ function updateRulePriority(value: string | number) {
         <p class="text-sm font-medium text-muted-foreground">
           有効ルール
         </p>
-        <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
-          {{ activeRulesCount }}件
-        </p>
-        <p class="mt-4 text-sm text-muted-foreground">
-          停止中 {{ rules.length - activeRulesCount }}件
-        </p>
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-9 w-20" />
+          <Skeleton class="mt-4 h-4 w-20" />
+        </template>
+        <template v-else>
+          <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            {{ activeRulesCount }}件
+          </p>
+          <p class="mt-4 text-sm text-muted-foreground">
+            停止中 {{ rules.length - activeRulesCount }}件
+          </p>
+        </template>
       </div>
 
       <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
         <p class="text-sm font-medium text-muted-foreground">
           チャネル内訳
         </p>
-        <p class="mt-2 text-lg font-bold tracking-tight text-foreground">
-          DM {{ dmRulesCount }}件 / コメント {{ commentRulesCount }}件
-        </p>
-        <p class="mt-4 text-sm text-muted-foreground">
-          優先度の高い順にマッチ判定されます
-        </p>
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-7 w-48" />
+          <Skeleton class="mt-4 h-4 w-40" />
+        </template>
+        <template v-else>
+          <p class="mt-2 text-lg font-bold tracking-tight text-foreground">
+            DM {{ dmRulesCount }}件 / コメント {{ commentRulesCount }}件
+          </p>
+          <p class="mt-4 text-sm text-muted-foreground">
+            優先度の高い順にマッチ判定されます
+          </p>
+        </template>
       </div>
     </template>
 
@@ -322,6 +338,25 @@ function updateRulePriority(value: string | number) {
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
+          <template v-if="isLoading">
+            <div class="space-y-4">
+              <Skeleton class="h-10 w-full rounded-[1.5rem]" />
+              <div
+                v-for="i in 3"
+                :key="`skeleton-rule-${i}`"
+                class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-5 space-y-4"
+              >
+                <div class="flex items-center gap-2">
+                  <Skeleton class="h-5 w-12 rounded-full" />
+                  <Skeleton class="h-5 w-12 rounded-full" />
+                  <Skeleton class="h-5 w-16 rounded-full" />
+                </div>
+                <Skeleton class="h-5 w-32" />
+                <Skeleton class="h-20 w-full rounded-[1.25rem]" />
+              </div>
+            </div>
+          </template>
+          <template v-else>
           <div class="flex flex-wrap gap-3 rounded-[1.5rem] border border-border/70 bg-muted/20 p-4">
             <Badge variant="outline">
               優先度順で判定
@@ -391,6 +426,7 @@ function updateRulePriority(value: string | number) {
               </div>
             </section>
           </div>
+          </template>
         </CardContent>
       </Card>
     </div>

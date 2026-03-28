@@ -25,11 +25,12 @@ const oauthConnectPath = '/api/ig-accounts/oauth/start'
 const refreshing = ref(false)
 const isGuideDialogOpen = ref(false)
 
-const { data: accountsData, refresh: refreshAccounts } = useFetch('/api/ig-accounts')
+const { data: accountsData, refresh: refreshAccounts, status: accountsStatus } = useFetch('/api/ig-accounts')
 const accounts = computed<IgAccount[]>(() => accountsData.value?.accounts || [])
 const enabledAccountsCount = computed(() => accounts.value.filter((account) => account.enabled).length)
 const disabledAccountsCount = computed(() => accounts.value.filter((account) => !account.enabled).length)
 const latestUpdatedAt = computed(() => accounts.value[0]?.updatedAt || null)
+const isLoading = computed(() => accountsStatus.value === 'pending')
 
 function getSingleQueryParam(value: string | string[] | undefined): string {
   if (typeof value === 'string') {
@@ -144,7 +145,10 @@ async function disconnectAccount(account: IgAccount) {
             <p class="text-sm font-medium text-muted-foreground">
               連携アカウント
             </p>
-            <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            <template v-if="isLoading">
+              <Skeleton class="mt-2 h-9 w-20" />
+            </template>
+            <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
               {{ accounts.length }}件
             </p>
           </div>
@@ -158,24 +162,36 @@ async function disconnectAccount(account: IgAccount) {
         <p class="text-sm font-medium text-muted-foreground">
           有効アカウント
         </p>
-        <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
-          {{ enabledAccountsCount }}件
-        </p>
-        <p class="mt-4 text-sm text-muted-foreground">
-          停止中 {{ disabledAccountsCount }}件
-        </p>
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-9 w-20" />
+          <Skeleton class="mt-4 h-4 w-20" />
+        </template>
+        <template v-else>
+          <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            {{ enabledAccountsCount }}件
+          </p>
+          <p class="mt-4 text-sm text-muted-foreground">
+            停止中 {{ disabledAccountsCount }}件
+          </p>
+        </template>
       </div>
 
       <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
         <p class="text-sm font-medium text-muted-foreground">
           最終更新
         </p>
-        <p class="mt-2 text-lg font-bold tracking-tight text-foreground">
-          {{ latestUpdatedAt ? formatDate(latestUpdatedAt) : '未登録' }}
-        </p>
-        <p class="mt-4 text-sm text-muted-foreground">
-          連携後は自動返信対象として即時利用できます
-        </p>
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-7 w-32" />
+          <Skeleton class="mt-4 h-4 w-48" />
+        </template>
+        <template v-else>
+          <p class="mt-2 text-lg font-bold tracking-tight text-foreground">
+            {{ latestUpdatedAt ? formatDate(latestUpdatedAt) : '未登録' }}
+          </p>
+          <p class="mt-4 text-sm text-muted-foreground">
+            連携後は自動返信対象として即時利用できます
+          </p>
+        </template>
       </div>
     </template>
 
@@ -189,6 +205,32 @@ async function disconnectAccount(account: IgAccount) {
         </CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
+        <template v-if="isLoading">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div
+              v-for="i in 2"
+              :key="`skeleton-account-${i}`"
+              class="rounded-[1.5rem] border border-border/70 bg-muted/30 p-5 space-y-4"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <div class="space-y-2 flex-1">
+                  <div class="flex items-center gap-2">
+                    <Skeleton class="h-6 w-32" />
+                    <Skeleton class="h-5 w-12 rounded-full" />
+                  </div>
+                  <Skeleton class="h-4 w-48" />
+                  <Skeleton class="h-3 w-36" />
+                </div>
+                <Skeleton class="size-11 rounded-2xl" />
+              </div>
+              <div class="flex gap-2">
+                <Skeleton class="h-8 w-16 rounded-md" />
+                <Skeleton class="h-8 w-20 rounded-md" />
+              </div>
+            </div>
+          </div>
+        </template>
+        <template v-else>
         <div v-if="accounts.length" class="grid gap-4 md:grid-cols-2">
           <div
             v-for="account in accounts"
@@ -244,6 +286,7 @@ async function disconnectAccount(account: IgAccount) {
             </Button>
           </div>
         </div>
+        </template>
       </CardContent>
     </Card>
 

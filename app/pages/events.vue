@@ -32,7 +32,8 @@ type InboundEvent = {
 const sendingTestEvent = ref(false)
 const refreshing = ref(false)
 
-const { data: eventsData, refresh: refreshEvents } = useFetch('/api/inbound-events')
+const { data: eventsData, refresh: refreshEvents, status: eventsStatus } = useFetch('/api/inbound-events')
+const isLoading = computed(() => eventsStatus.value === 'pending')
 const events = computed<InboundEvent[]>(() => eventsData.value?.events || [])
 const processedEventsCount = computed(() => events.value.filter((event) => event.outboundReplies[0]).length)
 const failedEventsCount = computed(() => events.value.filter((event) => event.outboundReplies[0]?.status === 'FAILED').length)
@@ -100,7 +101,10 @@ async function simulateInboundEvent() {
         <p class="text-sm font-medium text-muted-foreground">
           総イベント数
         </p>
-        <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-9 w-20" />
+        </template>
+        <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
           {{ events.length }}件
         </p>
       </div>
@@ -109,10 +113,16 @@ async function simulateInboundEvent() {
         <p class="text-sm font-medium text-muted-foreground">
           返信処理済み
         </p>
-        <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-9 w-20" />
+        </template>
+        <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
           {{ processedEventsCount }}件
         </p>
-        <p class="mt-4 text-sm text-muted-foreground">
+        <template v-if="isLoading">
+          <Skeleton class="mt-4 h-4 w-16" />
+        </template>
+        <p v-else class="mt-4 text-sm text-muted-foreground">
           失敗 {{ failedEventsCount }}件
         </p>
       </div>
@@ -121,10 +131,16 @@ async function simulateInboundEvent() {
         <p class="text-sm font-medium text-muted-foreground">
           最新受信
         </p>
-        <p class="mt-2 text-lg font-bold tracking-tight text-foreground">
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-9 w-20" />
+        </template>
+        <p v-else class="mt-2 text-lg font-bold tracking-tight text-foreground">
           {{ latestEventAt ? formatDate(latestEventAt) : '未受信' }}
         </p>
-        <p class="mt-4 text-sm text-muted-foreground">
+        <template v-if="isLoading">
+          <Skeleton class="mt-4 h-4 w-16" />
+        </template>
+        <p v-else class="mt-4 text-sm text-muted-foreground">
           テスト送信で即時確認できます
         </p>
       </div>
@@ -212,6 +228,24 @@ async function simulateInboundEvent() {
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
+          <template v-if="isLoading">
+            <div
+              v-for="i in 3"
+              :key="`skeleton-event-${i}`"
+              class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5 space-y-4"
+            >
+              <div class="flex flex-wrap items-center gap-2">
+                <Skeleton class="h-5 w-14 rounded-full" />
+                <Skeleton class="h-5 w-16 rounded-full" />
+                <Skeleton class="h-4 w-28" />
+              </div>
+              <div class="space-y-3">
+                <Skeleton class="h-4 w-40" />
+                <Skeleton class="h-16 w-full rounded-2xl" />
+              </div>
+            </div>
+          </template>
+          <template v-else>
           <article
             v-for="event in events"
             :key="event.id"
@@ -291,6 +325,7 @@ async function simulateInboundEvent() {
           >
             イベントはまだありません。テストイベント送信または Instagram 連携後の受信を待ってください。
           </div>
+          </template>
         </CardContent>
       </Card>
     </div>

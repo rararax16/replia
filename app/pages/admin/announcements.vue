@@ -26,9 +26,10 @@ const refreshing = ref(false)
 const saving = ref(false)
 const editingId = ref<string | null>(null)
 
-const { data, refresh } = useFetch('/api/admin/announcements', { default: () => ({ announcements: [] }) })
+const { data, refresh, status } = useFetch('/api/admin/announcements', { default: () => ({ announcements: [] }) })
 const announcements = computed<Announcement[]>(() => (data.value as any)?.announcements ?? [])
 const visibleCount = computed(() => announcements.value.filter(a => a.isVisible).length)
+const isLoading = computed(() => status.value === 'pending')
 
 const now = new Date()
 const defaultPublishAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
@@ -173,7 +174,10 @@ function getStatusVariant(item: Announcement): 'default' | 'secondary' | 'outlin
             <p class="text-sm font-medium text-muted-foreground">
               総お知らせ数
             </p>
-            <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            <template v-if="isLoading">
+              <Skeleton class="mt-2 h-9 w-20" />
+            </template>
+            <p v-else class="mt-2 text-3xl font-bold tracking-tight text-foreground">
               {{ announcements.length }}件
             </p>
           </div>
@@ -187,12 +191,18 @@ function getStatusVariant(item: Announcement): 'default' | 'secondary' | 'outlin
         <p class="text-sm font-medium text-muted-foreground">
           公開中
         </p>
-        <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
-          {{ visibleCount }}件
-        </p>
-        <p class="mt-4 text-sm text-muted-foreground">
-          非表示 {{ announcements.length - visibleCount }}件
-        </p>
+        <template v-if="isLoading">
+          <Skeleton class="mt-2 h-9 w-16" />
+          <Skeleton class="mt-4 h-4 w-20" />
+        </template>
+        <template v-else>
+          <p class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            {{ visibleCount }}件
+          </p>
+          <p class="mt-4 text-sm text-muted-foreground">
+            非表示 {{ announcements.length - visibleCount }}件
+          </p>
+        </template>
       </div>
 
       <div class="rounded-[1.5rem] border border-border/70 bg-muted/25 p-5">
@@ -295,54 +305,70 @@ function getStatusVariant(item: Announcement): 'default' | 'secondary' | 'outlin
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
-          <div v-if="announcements.length === 0" class="rounded-[1.5rem] border border-dashed border-border/70 bg-muted/10 p-8 text-center text-sm text-muted-foreground">
-            お知らせはまだありません
-          </div>
-
-          <section
-            v-for="item in announcements"
-            :key="item.id"
-            class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-4 shadow-sm sm:p-5"
-          >
-            <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-              <div class="min-w-0 flex-1 space-y-3">
-                <div class="flex flex-wrap items-center gap-2">
-                  <Badge :variant="getStatusVariant(item)">
-                    {{ getStatusLabel(item) }}
-                  </Badge>
-                  <span class="text-xs text-muted-foreground">
-                    公開: {{ formatDate(item.publishAt) }}
-                  </span>
-                </div>
-
-                <h3 class="text-lg font-semibold text-foreground">
-                  {{ item.title }}
-                </h3>
-
-                <div class="rounded-[1.25rem] border border-border/70 bg-background/80 p-4">
-                  <p class="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-                    {{ item.body }}
-                  </p>
-                </div>
+          <template v-if="isLoading">
+            <div
+              v-for="i in 3"
+              :key="`skeleton-announcement-${i}`"
+              class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-5 space-y-3"
+            >
+              <div class="flex items-center gap-2">
+                <Skeleton class="h-5 w-14 rounded-full" />
+                <Skeleton class="h-4 w-28" />
               </div>
-
-              <div class="flex flex-wrap gap-2 xl:w-[220px] xl:justify-end">
-                <Button size="sm" variant="outline" @click="editAnnouncement(item)">
-                  <Pencil class="size-3" />
-                  編集
-                </Button>
-                <Button size="sm" variant="secondary" @click="toggleVisibility(item)">
-                  <EyeOff v-if="item.isVisible" class="size-3" />
-                  <Eye v-else class="size-3" />
-                  {{ item.isVisible ? '非表示' : '表示' }}
-                </Button>
-                <Button size="sm" variant="destructive" @click="deleteAnnouncement(item.id)">
-                  <Trash2 class="size-3" />
-                  削除
-                </Button>
-              </div>
+              <Skeleton class="h-6 w-3/5" />
+              <Skeleton class="h-20 w-full rounded-[1.25rem]" />
             </div>
-          </section>
+          </template>
+          <template v-else>
+            <div v-if="announcements.length === 0" class="rounded-[1.5rem] border border-dashed border-border/70 bg-muted/10 p-8 text-center text-sm text-muted-foreground">
+              お知らせはまだありません
+            </div>
+
+            <section
+              v-for="item in announcements"
+              :key="item.id"
+              class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-4 shadow-sm sm:p-5"
+            >
+              <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div class="min-w-0 flex-1 space-y-3">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <Badge :variant="getStatusVariant(item)">
+                      {{ getStatusLabel(item) }}
+                    </Badge>
+                    <span class="text-xs text-muted-foreground">
+                      公開: {{ formatDate(item.publishAt) }}
+                    </span>
+                  </div>
+
+                  <h3 class="text-lg font-semibold text-foreground">
+                    {{ item.title }}
+                  </h3>
+
+                  <div class="rounded-[1.25rem] border border-border/70 bg-background/80 p-4">
+                    <p class="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+                      {{ item.body }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 xl:w-[220px] xl:justify-end">
+                  <Button size="sm" variant="outline" @click="editAnnouncement(item)">
+                    <Pencil class="size-3" />
+                    編集
+                  </Button>
+                  <Button size="sm" variant="secondary" @click="toggleVisibility(item)">
+                    <EyeOff v-if="item.isVisible" class="size-3" />
+                    <Eye v-else class="size-3" />
+                    {{ item.isVisible ? '非表示' : '表示' }}
+                  </Button>
+                  <Button size="sm" variant="destructive" @click="deleteAnnouncement(item.id)">
+                    <Trash2 class="size-3" />
+                    削除
+                  </Button>
+                </div>
+              </div>
+            </section>
+          </template>
         </CardContent>
       </Card>
     </div>

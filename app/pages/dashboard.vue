@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { EventChannel, ReplyStatus } from '@prisma/client'
-import { Activity, BellRing, CheckCircle2, CircleAlert, Instagram, Megaphone, MessageSquareText, RefreshCcw, Users } from 'lucide-vue-next'
+import { Activity, BellRing, CheckCircle2, CircleAlert, Instagram, Loader2, Megaphone, MessageSquareText, RefreshCcw, Users } from 'lucide-vue-next'
 const { showSuccess: setNotice, showError: setError } = useSnackbar()
 import { cn } from '@/lib/utils'
 import { instagramSetupSteps } from '@/lib/instagram-setup-guide'
@@ -68,11 +68,18 @@ type NotificationItem = {
 const refreshing = ref(false)
 const isGuideDialogOpen = ref(false)
 const { hideGuide } = useInstagramSetupGuidePreference()
-const { data: rulesData, refresh: refreshRules } = useFetch('/api/reply-rules')
-const { data: eventsData, refresh: refreshEvents } = useFetch('/api/inbound-events')
-const { data: accountsData, refresh: refreshAccounts } = useFetch('/api/ig-accounts')
-const { data: billingData, refresh: refreshBilling } = useFetch('/api/billing')
+const { data: rulesData, refresh: refreshRules, status: rulesStatus } = useFetch('/api/reply-rules')
+const { data: eventsData, refresh: refreshEvents, status: eventsStatus } = useFetch('/api/inbound-events')
+const { data: accountsData, refresh: refreshAccounts, status: accountsStatus } = useFetch('/api/ig-accounts')
+const { data: billingData, refresh: refreshBilling, status: billingStatus } = useFetch('/api/billing')
 const { data: announcementsData, refresh: refreshAnnouncements } = useFetch('/api/announcements', { default: () => ({ announcements: [] }) })
+
+const isInitialLoading = computed(() =>
+  rulesStatus.value === 'pending'
+  || eventsStatus.value === 'pending'
+  || accountsStatus.value === 'pending'
+  || billingStatus.value === 'pending'
+)
 
 type AnnouncementItem = {
   id: string
@@ -379,57 +386,83 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
-          <article
-            v-for="item in notifications"
-            :key="item.id"
-            :class="cn(
-              'rounded-[1.5rem] border p-5',
-              getNotificationToneClass(item.tone)
-            )"
-          >
-            <div class="flex items-start gap-4">
-              <div :class="cn('flex size-11 shrink-0 items-center justify-center rounded-2xl', getNotificationIconClass(item.tone))">
-                <component :is="item.icon" class="size-5" />
-              </div>
-
-              <div class="min-w-0 flex-1 space-y-3">
-                <div class="space-y-1.5">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-semibold text-foreground">
-                      {{ item.title }}
-                    </p>
-                    <Badge v-if="item.tone === 'danger'" variant="destructive">
-                      要確認
-                    </Badge>
-                    <Badge v-else-if="item.tone === 'warning'" variant="secondary">
-                      注意
-                    </Badge>
+          <!-- ローディング中スケルトン -->
+          <template v-if="isInitialLoading">
+            <div
+              v-for="i in 3"
+              :key="`skeleton-notification-${i}`"
+              class="rounded-[1.5rem] border border-border/70 bg-muted/10 p-5"
+            >
+              <div class="flex items-start gap-4">
+                <Skeleton class="size-11 shrink-0 rounded-2xl" />
+                <div class="min-w-0 flex-1 space-y-3">
+                  <div class="space-y-2">
+                    <Skeleton class="h-5 w-3/5" />
+                    <Skeleton class="h-4 w-4/5" />
                   </div>
-                  <p class="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                    {{ item.description }}
-                  </p>
-                </div>
-
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                  <p class="text-xs text-muted-foreground">
-                    {{ item.detail }}
-                  </p>
-                  <Button as-child size="sm" variant="outline">
-                    <NuxtLink :to="item.to">
-                      {{ item.cta }}
-                    </NuxtLink>
-                  </Button>
+                  <div class="flex items-center justify-between">
+                    <Skeleton class="h-3 w-24" />
+                    <Skeleton class="h-8 w-20 rounded-md" />
+                  </div>
                 </div>
               </div>
             </div>
-          </article>
+          </template>
 
-          <div
-            v-if="notifications.length === 0"
-            class="rounded-[1.5rem] border border-dashed border-border/80 bg-muted/20 px-6 py-10 text-center text-sm leading-6 text-muted-foreground"
-          >
-            現在、表示すべき通知はありません。
-          </div>
+          <!-- データ読み込み完了後 -->
+          <template v-else>
+            <article
+              v-for="item in notifications"
+              :key="item.id"
+              :class="cn(
+                'rounded-[1.5rem] border p-5',
+                getNotificationToneClass(item.tone)
+              )"
+            >
+              <div class="flex items-start gap-4">
+                <div :class="cn('flex size-11 shrink-0 items-center justify-center rounded-2xl', getNotificationIconClass(item.tone))">
+                  <component :is="item.icon" class="size-5" />
+                </div>
+
+                <div class="min-w-0 flex-1 space-y-3">
+                  <div class="space-y-1.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="font-semibold text-foreground">
+                        {{ item.title }}
+                      </p>
+                      <Badge v-if="item.tone === 'danger'" variant="destructive">
+                        要確認
+                      </Badge>
+                      <Badge v-else-if="item.tone === 'warning'" variant="secondary">
+                        注意
+                      </Badge>
+                    </div>
+                    <p class="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                      {{ item.description }}
+                    </p>
+                  </div>
+
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-xs text-muted-foreground">
+                      {{ item.detail }}
+                    </p>
+                    <Button as-child size="sm" variant="outline">
+                      <NuxtLink :to="item.to">
+                        {{ item.cta }}
+                      </NuxtLink>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <div
+              v-if="notifications.length === 0"
+              class="rounded-[1.5rem] border border-dashed border-border/80 bg-muted/20 px-6 py-10 text-center text-sm leading-6 text-muted-foreground"
+            >
+              現在、表示すべき通知はありません。
+            </div>
+          </template>
         </CardContent>
       </Card>
 
@@ -440,34 +473,46 @@ function getNotificationIconClass(tone: NotificationItem['tone']) {
               <CardTitle class="text-2xl">
                 今月のDM送信
               </CardTitle>
-              <Badge :variant="billing.plan === 'PRO' ? 'default' : 'secondary'">
+              <template v-if="billingStatus === 'pending'">
+                <Skeleton class="h-5 w-12 rounded-full" />
+              </template>
+              <Badge v-else :variant="billing.plan === 'PRO' ? 'default' : 'secondary'">
                 {{ billing.plan === 'PRO' ? 'Pro' : 'Free' }}
               </Badge>
             </div>
-            <CardDescription class="leading-6">
+            <template v-if="billingStatus === 'pending'">
+              <Skeleton class="h-4 w-24" />
+            </template>
+            <CardDescription v-else class="leading-6">
               {{ billing.replyUsedThisMonth }} / {{ billing.replyLimit }} 件
             </CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
-            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                class="h-full rounded-full transition-all"
-                :class="dmUsagePercent >= 100 ? 'bg-destructive' : dmUsagePercent >= 80 ? 'bg-amber-500' : 'bg-primary'"
-                :style="{ width: `${dmUsagePercent}%` }"
-              />
-            </div>
-            <div v-if="dmUsagePercent >= 100 && billing.plan === 'FREE'" class="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              月間DM上限に達しました。Proプランにアップグレードすると3,000件まで送れます。
-            </div>
-            <div v-else-if="dmUsagePercent >= 80 && billing.plan === 'FREE'" class="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
-              DM上限の{{ dmUsagePercent }}%に達しています。
-            </div>
-            <NuxtLink
-              to="/billing"
-              class="inline-flex items-center text-sm font-medium text-primary hover:underline"
-            >
-              プラン詳細を見る
-            </NuxtLink>
+            <template v-if="billingStatus === 'pending'">
+              <Skeleton class="h-2 w-full rounded-full" />
+              <Skeleton class="h-4 w-32" />
+            </template>
+            <template v-else>
+              <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  class="h-full rounded-full transition-all"
+                  :class="dmUsagePercent >= 100 ? 'bg-destructive' : dmUsagePercent >= 80 ? 'bg-amber-500' : 'bg-primary'"
+                  :style="{ width: `${dmUsagePercent}%` }"
+                />
+              </div>
+              <div v-if="dmUsagePercent >= 100 && billing.plan === 'FREE'" class="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                月間DM上限に達しました。Proプランにアップグレードすると3,000件まで送れます。
+              </div>
+              <div v-else-if="dmUsagePercent >= 80 && billing.plan === 'FREE'" class="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
+                DM上限の{{ dmUsagePercent }}%に達しています。
+              </div>
+              <NuxtLink
+                to="/billing"
+                class="inline-flex items-center text-sm font-medium text-primary hover:underline"
+              >
+                プラン詳細を見る
+              </NuxtLink>
+            </template>
           </CardContent>
         </Card>
 
